@@ -22,6 +22,26 @@ function RootRedirect() {
   return null;
 }
 
+// Not found redirect component
+function NotFoundRedirect() {
+  const navigate = useNavigate();
+  const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: "/dashboard", replace: true });
+    } else {
+      navigate({ to: "/login", replace: true });
+    }
+  }, [navigate, isAuthenticated]);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <p>Redirecting...</p>
+    </div>
+  );
+}
+
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
 });
@@ -63,7 +83,7 @@ const settingsRoute = createRoute({
   component: Settings,
 });
 
-// Root index route
+// Root index route - redirects to dashboard
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
@@ -77,35 +97,17 @@ const notFoundRoute = createRoute({
   component: NotFoundRedirect,
 });
 
-function NotFoundRedirect() {
-  const navigate = useNavigate();
-  const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate({ to: "/dashboard", replace: true });
-    } else {
-      navigate({ to: "/login", replace: true });
-    }
-  }, [navigate, isAuthenticated]);
-
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p>Redirecting...</p>
-    </div>
-  );
-}
-
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
+  notFoundRoute,
   layoutRoute.addChildren([dashboardRoute, clientsRoute, settingsRoute]),
 ]);
 
 export const router = createRouter({
   routeTree,
-  notFoundRoute: notFoundRoute,
   basepath: "/",
+  defaultPreload: "intent",
 });
 
 export { Login, DashboardHome, Clients, Settings, DashboardLayout };
