@@ -12,6 +12,7 @@ import { Login } from "@/features/auth/Login";
 import { DashboardHome } from "@/features/dashboard/DashboardHome";
 import { Clients } from "@/features/clients/Clients";
 import { Settings } from "@/features/settings/Settings";
+import { PageLoading } from "@/components/layout/PageLoading";
 
 // Root redirect component
 function RootRedirect() {
@@ -57,6 +58,7 @@ const layoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "authenticated",
   component: DashboardLayout,
+  pendingComponent: PageLoading,
   beforeLoad: () => {
     const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
     if (!isAuthenticated) {
@@ -108,6 +110,7 @@ export const router = createRouter({
   routeTree,
   basepath: "/",
   defaultPreload: "intent",
+  defaultPendingComponent: PageLoading,
 });
 
 export { Login, DashboardHome, Clients, Settings, DashboardLayout };
