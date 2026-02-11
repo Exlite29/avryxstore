@@ -10,13 +10,28 @@ export function Sidebar() {
             to="/dashboard"
             className="flex items-center gap-2 font-semibold"
           >
-            <span className="">My App</span>
+            <span className="">Avryx Store</span>
           </Link>
         </div>
         <div className="flex-1 flex flex-col justify-between py-4">
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
             <Button variant="ghost" className="justify-start w-full" asChild>
               <Link to="/dashboard">Dashboard</Link>
+            </Button>
+            <Button variant="ghost" className="justify-start w-full" asChild>
+              <Link to="/products">Products</Link>
+            </Button>
+            <Button variant="ghost" className="justify-start w-full" asChild>
+              <Link to="/scanner">Scanner</Link>
+            </Button>
+            <Button variant="ghost" className="justify-start w-full" asChild>
+              <Link to="/inventory">Inventory</Link>
+            </Button>
+            <Button variant="ghost" className="justify-start w-full" asChild>
+              <Link to="/sales">Sales</Link>
+            </Button>
+            <Button variant="ghost" className="justify-start w-full" asChild>
+              <Link to="/reports">Reports</Link>
             </Button>
             <Button variant="ghost" className="justify-start w-full" asChild>
               <Link to="/clients">Clients</Link>

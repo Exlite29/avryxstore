@@ -1,47 +1,21 @@
-import { useEffect } from "react";
 import {
   createRootRoute,
   createRoute,
   createRouter,
   Outlet,
   redirect,
-  useNavigate,
 } from "@tanstack/react-router";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Login } from "@/features/auth/Login";
 import { DashboardHome } from "@/features/dashboard/DashboardHome";
 import { Clients } from "@/features/clients/Clients";
 import { Settings } from "@/features/settings/Settings";
+import { Products } from "@/features/products/Products";
+import { Scanner } from "@/features/scanner/Scanner";
+import { Inventory } from "@/features/inventory/Inventory";
+import { Sales } from "@/features/sales/Sales";
+import { Reports } from "@/features/reports/Reports";
 import { PageLoading } from "@/components/layout/PageLoading";
-
-// Root redirect component
-function RootRedirect() {
-  const navigate = useNavigate();
-  useEffect(() => {
-    navigate({ to: "/dashboard", replace: true });
-  }, [navigate]);
-  return null;
-}
-
-// Not found redirect component
-function NotFoundRedirect() {
-  const navigate = useNavigate();
-  const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate({ to: "/dashboard", replace: true });
-    } else {
-      navigate({ to: "/login", replace: true });
-    }
-  }, [navigate, isAuthenticated]);
-
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p>Redirecting...</p>
-    </div>
-  );
-}
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -51,9 +25,14 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
   component: Login,
+  beforeLoad: () => {
+    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+    if (isAuthenticated) {
+      throw redirect({ to: "/dashboard" });
+    }
+  },
 });
 
-// Pathless layout route for authenticated pages
 const layoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "authenticated",
@@ -73,6 +52,36 @@ const dashboardRoute = createRoute({
   component: DashboardHome,
 });
 
+const productsRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "products",
+  component: Products,
+});
+
+const scannerRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "scanner",
+  component: Scanner,
+});
+
+const inventoryRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "inventory",
+  component: Inventory,
+});
+
+const salesRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "sales",
+  component: Sales,
+});
+
+const reportsRoute = createRoute({
+  getParentRoute: () => layoutRoute,
+  path: "reports",
+  component: Reports,
+});
+
 const clientsRoute = createRoute({
   getParentRoute: () => layoutRoute,
   path: "clients",
@@ -85,32 +94,46 @@ const settingsRoute = createRoute({
   component: Settings,
 });
 
-// Root index route - redirects to dashboard
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: RootRedirect,
+  beforeLoad: () => {
+    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+    throw redirect({
+      to: isAuthenticated ? "/dashboard" : "/login",
+    });
+  },
 });
 
-// Not found route - handles all unmatched paths
 const notFoundRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "*",
-  component: NotFoundRedirect,
+  beforeLoad: () => {
+    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+    throw redirect({
+      to: isAuthenticated ? "/dashboard" : "/login",
+    });
+  },
 });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
+  layoutRoute.addChildren([
+    dashboardRoute,
+    productsRoute,
+    scannerRoute,
+    inventoryRoute,
+    salesRoute,
+    reportsRoute,
+    clientsRoute,
+    settingsRoute,
+  ]),
   notFoundRoute,
-  layoutRoute.addChildren([dashboardRoute, clientsRoute, settingsRoute]),
 ]);
 
 export const router = createRouter({
   routeTree,
-  basepath: "/",
   defaultPreload: "intent",
   defaultPendingComponent: PageLoading,
 });
-
-export { Login, DashboardHome, Clients, Settings, DashboardLayout };

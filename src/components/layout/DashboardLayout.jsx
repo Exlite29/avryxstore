@@ -8,6 +8,11 @@ export function DashboardLayout() {
   const pathname = location.pathname;
 
   const getTitle = (path) => {
+    if (path === "/products") return "Products";
+    if (path === "/scanner") return "Scanner";
+    if (path === "/inventory") return "Inventory";
+    if (path === "/sales") return "Sales";
+    if (path === "/reports") return "Reports";
     if (path === "/clients") return "Clients";
     if (path === "/settings") return "Settings";
     return "Dashboard";

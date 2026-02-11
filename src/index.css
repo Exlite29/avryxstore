@@ -126,3 +126,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Scanner video styles */
+#qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0.5rem;
+}
+
+#qr-reader__scan_region {
+  min-height: 300px !important;
+}
+
+#qr-reader__dashboard {
+  margin-top: 0.5rem !important;
+}

@@ -19,13 +19,43 @@ export function MobileNav() {
             className="flex items-center gap-2 text-lg font-semibold"
           >
             <Package2 className="h-6 w-6" />
-            <span className="sr-only">My App</span>
+            <span className="sr-only">Avryx Store</span>
           </Link>
           <Link
             to="/dashboard"
             className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
           >
             Dashboard
+          </Link>
+          <Link
+            to="/products"
+            className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+          >
+            Products
+          </Link>
+          <Link
+            to="/scanner"
+            className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+          >
+            Scanner
+          </Link>
+          <Link
+            to="/inventory"
+            className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+          >
+            Inventory
+          </Link>
+          <Link
+            to="/sales"
+            className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+          >
+            Sales
+          </Link>
+          <Link
+            to="/reports"
+            className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+          >
+            Reports
           </Link>
           <Link
             to="/clients"
