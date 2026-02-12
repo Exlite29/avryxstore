@@ -33,6 +33,9 @@ const getInventoryErrorMessage = (error, operation) => {
         return INVENTORY_ERROR_MESSAGES.addStock.notFound;
       }
       if (error.statusCode === 400) {
+        if (error.message?.includes("product ID")) {
+          return INVENTORY_ERROR_MESSAGES.addStock.invalidProduct;
+        }
         if (operation === "addStock") {
           return INVENTORY_ERROR_MESSAGES.addStock.invalidQuantity;
         }
@@ -50,6 +53,23 @@ const inventoryService = {
       const query = new URLSearchParams(params).toString();
       const endpoint = `/api/v1/inventory${query ? `?${query}` : ""}`;
       const data = await api(endpoint);
+      
+      // Normalize response data to ensure 'id' and 'name' exist
+      // The backend 'paginated' helper returns { success, data, pagination }
+      const items = data.data || data.inventory || (Array.isArray(data) ? data : null);
+      
+      if (items && Array.isArray(items)) {
+        const normalizedItems = items.map(item => ({
+          ...item,
+          id: item.id || item.product_id,
+          name: item.name || item.product_name
+        }));
+        
+        if (data.data) data.data = normalizedItems;
+        if (data.inventory) data.inventory = normalizedItems;
+        if (Array.isArray(data)) return normalizedItems;
+      }
+      
       return data;
     } catch (error) {
       if (error instanceof ApiError) {

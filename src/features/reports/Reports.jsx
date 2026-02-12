@@ -49,54 +49,58 @@ export function Reports() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [daily, top, val, scn] = await Promise.all([
-        reportService.getDailySales(),
+      const [salesTrend, top, inv, scn] = await Promise.all([
+        reportService.getSalesReports({ groupBy: 'day' }),
         reportService.getTopProducts(),
-        reportService.getInventoryValuation(),
+        reportService.getInventoryReports(),
         reportService.getScannerMetrics()
       ]);
 
-      setDailySales(daily.data || []);
-      setTopProducts(top.data || []);
-      setValuationData(val.data?.categories || []);
+      // Normalize Sales Trend
+      const trendData = (salesTrend?.period || []).map(p => ({
+        date: p.period.split('-').slice(1).join('-'), // MM-DD format
+        revenue: p.totalSales,
+        count: p.transactionCount
+      })).reverse(); // Oldest to newest for the chart
+      setDailySales(trendData);
+
+      // Normalize Top Products
+      const productsData = (top || []).map(p => ({
+        name: p.name,
+        sales: p.totalQuantitySold,
+        revenue: p.totalRevenue
+      }));
+      setTopProducts(productsData);
+
+      // Normalize Inventory Valuation (Group by category)
+      const invItems = inv?.items || [];
+      const categoryMap = invItems.reduce((acc, item) => {
+        const cat = item.category || 'Uncategorized';
+        acc[cat] = (acc[cat] || 0) + (item.stockValue || 0);
+        return acc;
+      }, {});
       
-      const metricsData = val.data || {};
-      const dailySalesList = daily.data || [];
+      const valuationList = Object.entries(categoryMap).map(([name, value]) => ({
+        name,
+        value
+      })).sort((a, b) => b.value - a.value);
+      setValuationData(valuationList);
       
-      // Aggregate some metrics
-      const totalSales = dailySalesList.reduce((acc, curr) => acc + (curr.revenue || 0), 0);
+      // Update Summary Metrics
+      const summary = salesTrend?.summary || {};
+      const invSummary = inv?.summary || {};
+
       setMetrics({
-        total_sales: totalSales,
-        growth: 12.5, // Mock growth for now
-        inventory_value: metricsData.total_value || 0,
-        trans_count: dailySalesList.reduce((acc, curr) => acc + (curr.count || 0), 0)
+        total_sales: summary.totalSales || 0,
+        growth: 12.5, // Trend calculation placeholder
+        inventory_value: invSummary.totalValue || 0,
+        trans_count: summary.totalTransactions || 0,
+        total_units: invSummary.totalUnits || invSummary.total_units || 0
       });
     } catch (error) {
-      showToast("Operations failed: using placeholder data", "warning");
-      // Fallback with mock data for "Premium" look if backend is empty
-      setDailySales([
-        { date: '02-04', revenue: 4500, count: 12 },
-        { date: '02-05', revenue: 5200, count: 15 },
-        { date: '02-06', revenue: 3800, count: 10 },
-        { date: '02-07', revenue: 6500, count: 22 },
-        { date: '02-08', revenue: 4800, count: 14 },
-        { date: '02-09', revenue: 7200, count: 19 },
-        { date: '02-10', revenue: 5100, count: 16 },
-      ]);
-      setTopProducts([
-        { name: 'Coke 1.5L', sales: 45, revenue: 2250 },
-        { name: 'Skyflakes 10s', sales: 38, revenue: 1900 },
-        { name: 'Lucky Me Pancit', sales: 32, revenue: 1600 },
-        { name: 'Bear Brand 150g', sales: 25, revenue: 3750 },
-        { name: 'Silver Swan Soy', sales: 20, revenue: 800 },
-      ]);
-      setValuationData([
-        { name: 'Beverages', value: 12000 },
-        { name: 'Snacks', value: 8500 },
-        { name: 'Canned Goods', value: 15000 },
-        { name: 'Dairy', value: 5000 },
-        { name: 'Hygiene', value: 7800 },
-      ]);
+      console.error("Reports Fetch Error:", error);
+      showToast("Real-time data synchronization failed: using cached views", "warning");
+      // Keep existing placeholder logic as fallback if needed, but the service handles errors
     } finally {
       setLoading(false);
     }
@@ -162,12 +166,12 @@ export function Reports() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Growth Index</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <CardTitle className="text-sm font-medium">Overall Item Stock</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">Positive</div>
-            <p className="text-xs text-muted-foreground">Performance is up</p>
+            <div className="text-2xl font-bold">{metrics.total_units?.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Total items in stock</p>
           </CardContent>
         </Card>
       </div>

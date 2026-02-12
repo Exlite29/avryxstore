@@ -96,6 +96,7 @@ export const INVENTORY_ERROR_MESSAGES = {
     invalidQuantity: "Please enter a valid quantity.",
     negativeQuantity: "Quantity cannot be negative.",
     notFound: "Product not found for inventory adjustment.",
+    invalidProduct: "A valid product selection is required for this operation.",
   },
   removeStock: {
     insufficientStock: "Insufficient stock to remove.",
@@ -122,6 +123,7 @@ export const SALES_ERROR_MESSAGES = {
     productNotFound: "One or more products not found.",
     invalidQuantity: "Please enter a valid quantity for all items.",
     invalidPrice: "Invalid price for one or more items.",
+    insufficientPayment: "Amount paid is less than the total amount.",
     paymentFailed: "Payment processing failed. Please try again.",
     paymentDeclined: "Payment was declined. Please try a different payment method.",
   },
@@ -222,6 +224,7 @@ export const ERROR_CODES = {
   // Sales
   CART_EMPTY: SALES_ERROR_MESSAGES.create.emptyCart,
   SALE_NOT_FOUND: SALES_ERROR_MESSAGES.cancel.notFound,
+  INSUFFICIENT_PAYMENT: SALES_ERROR_MESSAGES.create.insufficientPayment,
   
   // Scanner
   INVALID_BARCODE: SCANNER_ERROR_MESSAGES.scanBarcode.invalid,

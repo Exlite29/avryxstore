@@ -104,40 +104,17 @@ const getPasswordErrorMessage = (error) => {
 const authService = {
   register: async (userData) => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/register`, {
+      const data = await api("/api/v1/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(userData),
       });
-
-      if (!response.ok) {
-        const errorInfo = await response.json().catch(() => ({}));
-        
-        let errorMessage = AUTH_ERROR_MESSAGES.register.missingFields;
-        
-        if (errorInfo.code === "EMAIL_EXISTS") {
-          errorMessage = AUTH_ERROR_MESSAGES.register.emailExists;
-        } else if (errorInfo.code === "USERNAME_EXISTS") {
-          errorMessage = AUTH_ERROR_MESSAGES.register.usernameExists;
-        } else if (errorInfo.message) {
-          errorMessage = errorInfo.message;
-        }
-
-        throw new ApiError(
-          errorMessage,
-          response.status,
-          errorInfo.code || "REGISTRATION_FAILED"
-        );
-      }
-
       console.log("[Auth] Registration successful");
-      return response.json();
+      return data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Auth] Registration error:", error.message);
-        throw new ApiError(error.message, error.statusCode, error.errorCode);
+        throw error;
       }
-      
       console.error("[Auth] Registration error:", error);
       throw new ApiError(
         getErrorMessage(error, AUTH_ERROR_MESSAGES.register.missingFields),
@@ -149,29 +126,17 @@ const authService = {
 
   login: async (credentials) => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+      const data = await api("/api/v1/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
       });
-
-      if (!response.ok) {
-        const errorInfo = await response.json().catch(() => ({}));
-        throw new ApiError(
-          getAuthErrorMessage({ statusCode: response.status, ...errorInfo }),
-          response.status,
-          errorInfo.code || "LOGIN_FAILED"
-        );
-      }
-
       console.log("[Auth] Login successful");
-      return response.json();
+      return data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Auth] Login error:", error.message);
         throw error;
       }
-      
       console.error("[Auth] Login error:", error);
       throw new ApiError(
         getErrorMessage(error, AUTH_ERROR_MESSAGES.login.invalidCredentials),
@@ -183,27 +148,15 @@ const authService = {
 
   refreshToken: async (token) => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/refresh-token`, {
+      const data = await api("/api/v1/auth/refresh-token", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-
-      if (!response.ok) {
-        const errorInfo = await response.json().catch(() => ({}));
-        throw new ApiError(
-          AUTH_ERROR_MESSAGES.refreshToken,
-          response.status,
-          errorInfo.code || "REFRESH_TOKEN_FAILED"
-        );
-      }
-
-      return response.json();
+      return data;
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
       }
-      
       console.error("[Auth] Token refresh error:", error);
       throw new ApiError(
         AUTH_ERROR_MESSAGES.refreshToken,
@@ -213,30 +166,14 @@ const authService = {
     }
   },
 
-  getProfile: async (token) => {
+  getProfile: async () => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/profile`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorInfo = await response.json().catch(() => ({}));
-        throw new ApiError(
-          AUTH_ERROR_MESSAGES.profile,
-          response.status,
-          errorInfo.code || "PROFILE_FETCH_FAILED"
-        );
-      }
-
-      return response.json();
+      const data = await api("/api/v1/auth/profile");
+      return data;
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
       }
-      
       console.error("[Auth] Get profile error:", error);
       throw new ApiError(
         AUTH_ERROR_MESSAGES.profile,
@@ -246,32 +183,17 @@ const authService = {
     }
   },
 
-  updateProfile: async (token, profileData) => {
+  updateProfile: async (profileData) => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/profile`, {
+      const data = await api("/api/v1/auth/profile", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(profileData),
       });
-
-      if (!response.ok) {
-        const errorInfo = await response.json().catch(() => ({}));
-        throw new ApiError(
-          getProfileErrorMessage(errorInfo),
-          response.status,
-          errorInfo.code || "PROFILE_UPDATE_FAILED"
-        );
-      }
-
-      return response.json();
+      return data;
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
       }
-      
       console.error("[Auth] Update profile error:", error);
       throw new ApiError(
         AUTH_ERROR_MESSAGES.updateProfile,
@@ -281,35 +203,25 @@ const authService = {
     }
   },
 
-  changePassword: async (token, passwordData) => {
+  changePassword: async (passwordData) => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/change-password`, {
+      const data = await api("/api/v1/auth/change-password", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
         body: JSON.stringify(passwordData),
       });
-
-      if (!response.ok) {
-        const errorInfo = await response.json().catch(() => ({}));
-        throw new ApiError(
-          getPasswordErrorMessage(errorInfo),
-          response.status,
-          errorInfo.code || "PASSWORD_CHANGE_FAILED"
-        );
-      }
-
-      return response.json();
+      return data;
     } catch (error) {
       if (error instanceof ApiError) {
-        throw error;
+        console.error("[Auth] Change password API error:", error.message);
+        throw new ApiError(
+          getPasswordErrorMessage(error),
+          error.statusCode,
+          error.errorCode
+        );
       }
-      
       console.error("[Auth] Change password error:", error);
       throw new ApiError(
-        getPasswordErrorMessage(error),
+        AUTH_ERROR_MESSAGES.changePassword.currentPasswordWrong,
         500,
         "PASSWORD_CHANGE_ERROR"
       );
@@ -318,27 +230,18 @@ const authService = {
 
   logout: async () => {
     try {
-      const response = await fetch(`${API_URL}/api/v1/auth/logout`, {
+      const data = await api("/api/v1/auth/logout", {
         method: "POST",
       });
-
-      if (!response.ok && response.status !== 401) {
-        const errorInfo = await response.json().catch(() => ({}));
-        throw new ApiError(
-          AUTH_ERROR_MESSAGES.logout,
-          response.status,
-          errorInfo.code || "LOGOUT_FAILED"
-        );
-      }
-
-      return response.json().catch(() => ({}));
+      return data;
     } catch (error) {
       if (error instanceof ApiError) {
+        if (error.statusCode === 401) {
+          return { success: true };
+        }
         throw error;
       }
-      
       console.error("[Auth] Logout error:", error);
-      // Don't throw on logout error, just log it
       return { success: true };
     }
   },

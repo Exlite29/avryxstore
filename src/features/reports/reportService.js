@@ -15,10 +15,11 @@ const getReportsErrorMessage = (error, operation) => {
 };
 
 const reportService = {
-  getSalesReports: async () => {
+  getSalesReports: async (params) => {
     try {
-      const data = await api("/api/v1/reports/sales");
-      return data;
+      const query = params ? `?${new URLSearchParams(params).toString()}` : "";
+      const data = await api(`/api/v1/reports/sales${query}`);
+      return data.data || data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Reports] Get sales reports error:", error.message);
@@ -37,10 +38,11 @@ const reportService = {
     }
   },
 
-  getTopProducts: async () => {
+  getTopProducts: async (params) => {
     try {
-      const data = await api("/api/v1/reports/sales/top-products");
-      return data;
+      const query = params ? `?${new URLSearchParams(params).toString()}` : "";
+      const data = await api(`/api/v1/reports/sales/top-products${query}`);
+      return data.data || data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Reports] Get top products error:", error.message);
@@ -59,10 +61,11 @@ const reportService = {
     }
   },
 
-  getDailySales: async () => {
+  getDailySales: async (params) => {
     try {
-      const data = await api("/api/v1/reports/sales/daily");
-      return data;
+      const query = params ? `?${new URLSearchParams(params).toString()}` : "";
+      const data = await api(`/api/v1/reports/sales/daily${query}`);
+      return data.data || data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Reports] Get daily sales error:", error.message);
@@ -81,10 +84,11 @@ const reportService = {
     }
   },
 
-  getCashflow: async () => {
+  getCashflow: async (params) => {
     try {
-      const data = await api("/api/v1/reports/sales/cashflow");
-      return data;
+      const query = params ? `?${new URLSearchParams(params).toString()}` : "";
+      const data = await api(`/api/v1/reports/sales/cashflow${query}`);
+      return data.data || data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Reports] Get cashflow error:", error.message);
@@ -103,10 +107,11 @@ const reportService = {
     }
   },
 
-  getInventoryReports: async () => {
+  getInventoryReports: async (params) => {
     try {
-      const data = await api("/api/v1/reports/inventory");
-      return data;
+      const query = params ? `?${new URLSearchParams(params).toString()}` : "";
+      const data = await api(`/api/v1/reports/inventory${query}`);
+      return data.data || data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Reports] Get inventory reports error:", error.message);
@@ -128,7 +133,7 @@ const reportService = {
   getInventoryValuation: async () => {
     try {
       const data = await api("/api/v1/reports/inventory/valuation");
-      return data;
+      return data.data || data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Reports] Get inventory valuation error:", error.message);
@@ -147,10 +152,11 @@ const reportService = {
     }
   },
 
-  getScannerMetrics: async () => {
+  getScannerMetrics: async (params) => {
     try {
-      const data = await api("/api/v1/reports/scanner/metrics");
-      return data;
+      const query = params ? `?${new URLSearchParams(params).toString()}` : "";
+      const data = await api(`/api/v1/reports/scanner/metrics${query}`);
+      return data.data || data;
     } catch (error) {
       if (error instanceof ApiError) {
         console.error("[Reports] Get scanner metrics error:", error.message);

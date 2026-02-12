@@ -76,7 +76,7 @@ export function Products() {
     const handler = setTimeout(() => {
       setPage(1);
       fetchProducts(searchTerm, 1);
-    }, 400);
+    }, 600);
 
     return () => clearTimeout(handler);
   }, [searchTerm]);

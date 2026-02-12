@@ -8,7 +8,6 @@ import {
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Login } from "@/features/auth/Login";
 import { DashboardHome } from "@/features/dashboard/DashboardHome";
-import { Clients } from "@/features/clients/Clients";
 import { Settings } from "@/features/settings/Settings";
 import { Products } from "@/features/products/Products";
 import { Scanner } from "@/features/scanner/Scanner";
@@ -82,11 +81,6 @@ const reportsRoute = createRoute({
   component: Reports,
 });
 
-const clientsRoute = createRoute({
-  getParentRoute: () => layoutRoute,
-  path: "clients",
-  component: Clients,
-});
 
 const settingsRoute = createRoute({
   getParentRoute: () => layoutRoute,
@@ -126,7 +120,6 @@ const routeTree = rootRoute.addChildren([
     inventoryRoute,
     salesRoute,
     reportsRoute,
-    clientsRoute,
     settingsRoute,
   ]),
   notFoundRoute,

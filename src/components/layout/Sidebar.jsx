@@ -33,9 +33,6 @@ export function Sidebar() {
             <Button variant="ghost" className="justify-start w-full" asChild>
               <Link to="/reports">Reports</Link>
             </Button>
-            <Button variant="ghost" className="justify-start w-full" asChild>
-              <Link to="/clients">Clients</Link>
-            </Button>
           </nav>
           <nav className="grid items-start px-2 text-sm font-medium lg:px-4 mt-auto">
             <Button variant="ghost" className="justify-start w-full" asChild>

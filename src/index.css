@@ -127,18 +127,42 @@
   }
 }
 
-/* Scanner video styles */
-#qr-reader video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: cover !important;
-  border-radius: 0.5rem;
+/* Quagga Scanner styles */
+#scanner-container {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 2px solid var(--border);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  position: relative;
 }
 
-#qr-reader__scan_region {
-  min-height: 300px !important;
+#scanner-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-#qr-reader__dashboard {
-  margin-top: 0.5rem !important;
+#scanner-container canvas.drawingBuffer {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.scan-success-flash {
+  animation: scan-flash 0.3s ease-out;
+}
+
+@keyframes scan-flash {
+  0% {
+    box-shadow: 0 0 0 0px rgba(34, 197, 94, 0);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 0 20px rgba(34, 197, 94, 0.4);
+    filter: brightness(1.3);
+  }
+  100% {
+    box-shadow: 0 0 0 40px rgba(34, 197, 94, 0);
+    filter: brightness(1);
+  }
 }

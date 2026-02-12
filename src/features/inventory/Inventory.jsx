@@ -65,9 +65,13 @@ export function Inventory() {
         inventoryService.getValuation()
       ]);
       
-      const invList = invData.data || [];
+      const invList = invData.inventory || invData.data || (Array.isArray(invData) ? invData : []);
       setInventory(invList);
-      setValuation(valData.data || { total_value: 0, item_count: 0 });
+      const vData = valData.data || valData || {};
+      setValuation({
+        total_value: vData.total_value || vData.value || 0,
+        item_count: vData.item_count || vData.count || 0
+      });
       
       if (invData.pagination) {
         setTotalPages(invData.pagination.totalPages || 1);
@@ -87,7 +91,7 @@ export function Inventory() {
     const handler = setTimeout(() => {
       setPage(1);
       fetchData(searchTerm, 1);
-    }, 400);
+    }, 600);
 
     return () => clearTimeout(handler);
   }, [searchTerm]);
@@ -107,6 +111,11 @@ export function Inventory() {
   };
 
   const handleAdjustStock = async () => {
+    if (!selectedProduct?.id) {
+      showToast("No product selected or invalid product ID", "error");
+      return;
+    }
+
     if (!adjustmentValue || isNaN(adjustmentValue)) {
       showToast("Please enter a valid number", "error");
       return;
@@ -131,7 +140,7 @@ export function Inventory() {
       setIsAdjustmentOpen(false);
       fetchData(); // Refresh data
     } catch (error) {
-      showToast("Failed to adjust stock", "error");
+      showToast(error.message || "Failed to adjust stock", "error");
     } finally {
       setSaving(false);
     }
@@ -233,7 +242,7 @@ export function Inventory() {
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">Loading...</TableCell>
                   </TableRow>
-                ) : filteredInventory.length === 0 ? (
+                ) : inventory.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No inventory records found.</TableCell>
                   </TableRow>

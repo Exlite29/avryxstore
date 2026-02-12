@@ -58,12 +58,6 @@ export function MobileNav() {
             Reports
           </Link>
           <Link
-            to="/clients"
-            className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
-          >
-            Clients
-          </Link>
-          <Link
             to="/settings"
             className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
           >

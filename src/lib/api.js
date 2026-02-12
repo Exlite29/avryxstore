@@ -1,3 +1,4 @@
+import axios from "axios";
 import { HTTP_ERROR_MESSAGES } from "./errorMessages";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -17,139 +18,111 @@ export class ApiError extends Error {
 }
 
 /**
- * Parse error response from API
+ * Axios instance with base configuration
  */
-const parseErrorResponse = async (response) => {
-  const contentType = response.headers.get("content-type");
-  let errorData = {};
-  
-  if (contentType && contentType.includes("application/json")) {
-    try {
-      errorData = await response.json();
-    } catch {
-      // JSON parsing failed, use default
-    }
-  } else {
-    // Try to get text response
-    try {
-      const text = await response.text();
-      errorData.message = text || `Request failed with status ${response.status}`;
-    } catch {
-      errorData.message = `Request failed with status ${response.status}`;
-    }
-  }
-  
-  return {
-    message: errorData.message || HTTP_ERROR_MESSAGES[response.status] || `Request failed with status ${response.status}`,
-    errorCode: errorData.code || errorData.errorCode || null,
-    details: errorData.details || errorData.errors || null,
-  };
-};
+const apiClient = axios.create({
+  baseURL: API_URL,
+  timeout: 30000, // 30 seconds
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
 /**
- * Network error handler
+ * Request interceptor to add auth token
  */
-const handleNetworkError = (error) => {
-  if (error.name === "TypeError" && error.message.includes("fetch")) {
-    return new ApiError(
-      HTTP_ERROR_MESSAGES.NETWORK_ERROR,
-      0,
-      "NETWORK_ERROR"
-    );
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    
+    // Log request for debugging
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
+      headers: { ...config.headers, Authorization: token ? 'Bearer [HIDDEN]' : 'None' },
+      data: config.data
+    });
+    
+    return config;
+  },
+  (error) => {
+    console.error("[API Request Exception]:", error);
+    return Promise.reject(error);
   }
-  
-  if (error.name === "AbortError") {
-    return new ApiError(
-      HTTP_ERROR_MESSAGES.TIMEOUT_ERROR,
-      0,
-      "TIMEOUT_ERROR"
-    );
-  }
-  
-  return new ApiError(
-    error.message || HTTP_ERROR_MESSAGES[500],
-    500,
-    "UNKNOWN_ERROR"
-  );
-};
+);
 
+/**
+ * Response interceptor to handle errors and extract data
+ */
+apiClient.interceptors.response.use(
+  (response) => {
+    console.log(`[API Response] ${response.config.url}:`, response.data);
+    return response.data;
+  },
+  (error) => {
+    let structuredError;
+
+    if (error.response) {
+      // The server responded with a status code outside the 2xx range
+      const { status, data } = error.response;
+      
+      // Handle 401 Unauthorized
+      if (status === 401) {
+        localStorage.removeItem("token");
+        // Only redirect if not already on login or landing page
+        if (!window.location.pathname.includes("/login") && window.location.pathname !== "/") {
+          window.location.href = "/login";
+        }
+      }
+
+      const message = data?.message || HTTP_ERROR_MESSAGES[status] || `Request failed with status ${status}`;
+      const errorCode = data?.code || data?.errorCode || null;
+      const details = data?.details || data?.errors || null;
+
+      structuredError = new ApiError(message, status, errorCode, details);
+      console.warn(`[API Error Response] Status ${status}:`, structuredError);
+    } else if (error.request) {
+      // The request was made but no response was received
+      if (error.code === 'ECONNABORTED') {
+        structuredError = new ApiError(HTTP_ERROR_MESSAGES.TIMEOUT_ERROR, 0, "TIMEOUT_ERROR");
+      } else {
+        structuredError = new ApiError(HTTP_ERROR_MESSAGES.NETWORK_ERROR, 0, "NETWORK_ERROR");
+      }
+      console.error("[API Network Error]:", error);
+    } else {
+      // Something happened in setting up the request
+      structuredError = new ApiError(error.message || HTTP_ERROR_MESSAGES[500], 500, "UNKNOWN_ERROR");
+      console.error("[API Request Setup Error]:", error);
+    }
+
+    return Promise.reject(structuredError);
+  }
+);
+
+/**
+ * Main api function maintaining the same signature for backward compatibility
+ */
 const api = async (endpoint, options = {}) => {
-  const token = localStorage.getItem("token");
+  const { method = 'GET', body, headers, ...rest } = options;
   
-  const headers = { ...options.headers };
+  // Standardize: Remove leading slash if present because baseURL handles it
+  const cleanUrl = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-  // Only set application/json if not FormData
-  if (!(options.body instanceof FormData)) {
-    headers["Content-Type"] = headers["Content-Type"] || "application/json";
-  }
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
+  // Map fetch 'body' to axios 'data'
+  // Also handle FormData automatically (axios does this, but we ensure it's passed)
   const config = {
-    ...options,
-    headers,
+    url: cleanUrl,
+    method: method.toUpperCase(),
+    headers: { ...headers },
+    data: body ? (typeof body === 'string' ? JSON.parse(body) : body) : undefined,
+    ...rest
   };
 
-  // Standardize: Remove trailing slash from both API_URL and endpoint
-  const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const finalUrl = `${baseUrl}${cleanEndpoint}`;
+  // If there's a Content-Type in options.headers, axios will use it
+  // If body is FormData, axios will handle Content-Type transition automatically
 
-  try {
-    console.log(`[API Request] ${options.method || 'GET'} ${finalUrl}`, {
-      headers: { ...headers, Authorization: token ? 'Bearer [HIDDEN]' : 'None' },
-      body: options.body instanceof FormData ? 'FormData' : options.body
-    });
-
-    const response = await fetch(finalUrl, config);
-    
-    // Check if it's a 204 No Content or a delete operation with no body
-    if (response.status === 204) {
-      return null;
-    }
-
-    // Handle redirect (401 - Unauthorized)
-    if (response.status === 401) {
-      // Clear invalid token
-      localStorage.removeItem("token");
-      // Optionally redirect to login
-      window.location.href = "/login";
-      throw new ApiError(
-        HTTP_ERROR_MESSAGES[401],
-        401,
-        "UNAUTHORIZED"
-      );
-    }
-
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      const errorInfo = await parseErrorResponse(response);
-      console.warn(`[API Error Response] Status ${response.status}:`, errorInfo);
-      
-      throw new ApiError(
-        errorInfo.message,
-        response.status,
-        errorInfo.errorCode,
-        errorInfo.details
-      );
-    }
-
-    console.log(`[API Response] ${finalUrl}:`, data);
-    return data;
-  } catch (error) {
-    // If it's already an ApiError, rethrow it
-    if (error instanceof ApiError) {
-      throw error;
-    }
-    
-    // Handle network and other errors
-    const structuredError = handleNetworkError(error);
-    console.error(`[API Exception] ${endpoint}:`, structuredError);
-    throw structuredError;
-  }
+  return apiClient(config);
 };
 
 export default api;
@@ -172,3 +145,4 @@ export const getErrorCode = (error) => {
   }
   return error.code || error.errorCode || null;
 };
+

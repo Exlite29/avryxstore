@@ -61,11 +61,15 @@ export function Sales() {
         }),
         salesService.getDailySummary()
       ]);
-      
-      const salesList = salesData.data || [];
+
+      const salesList = salesData.data || salesData || [];
       setSales(salesList);
-      setSummary(summaryData.data || { total_revenue: 0, sale_count: 0 });
-      
+      const sData = summaryData.data || summaryData || {};
+      setSummary({
+        total_revenue: sData.total_revenue || sData.revenue || 0,
+        sale_count: sData.sale_count || sData.count || 0
+      });
+
       if (salesData.pagination) {
         setTotalPages(salesData.pagination.totalPages || 1);
         setTotalCount(salesData.pagination.total || salesList.length);
@@ -84,7 +88,7 @@ export function Sales() {
     const handler = setTimeout(() => {
       setPage(1);
       fetchData(searchTerm, 1);
-    }, 400);
+    }, 600);
 
     return () => clearTimeout(handler);
   }, [searchTerm]);
@@ -132,36 +136,36 @@ export function Sales() {
 
       {/* Stats Summary */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+        <Card className="bg-blue-50 border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium text-blue-800">Today's Revenue</CardTitle>
             <TrendingUp className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">₱{Number(summary.total_revenue || 0).toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Calculated from completed sales</p>
+            <div className="text-3xl font-black text-blue-700">₱{Number(summary.total_revenue || 0).toLocaleString()}</div>
+            <p className="text-xs text-blue-600/70 font-medium">Calculated from completed sales</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-sm bg-muted/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Transactions</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.sale_count || 0}</div>
+            <div className="text-3xl font-bold">{summary.sale_count || 0}</div>
             <p className="text-xs text-muted-foreground">Successful sales today</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-green-50 border-none shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average Sale</CardTitle>
+            <CardTitle className="text-sm font-medium text-green-800">Average Sale</CardTitle>
             <CreditCard className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-3xl font-black text-green-700">
               ₱{summary.sale_count > 0 ? (summary.total_revenue / summary.sale_count).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 0}
             </div>
-            <p className="text-xs text-muted-foreground">Per transaction on average</p>
+            <p className="text-xs text-green-600/70 font-medium">Per transaction on average</p>
           </CardContent>
         </Card>
       </div>
@@ -206,7 +210,7 @@ export function Sales() {
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">Loading sales...</TableCell>
                   </TableRow>
-                ) : filteredSales.length === 0 ? (
+                ) : sales.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No sales recorded today.</TableCell>
                   </TableRow>

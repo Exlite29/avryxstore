@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "@tanstack/react-router";
 import { 
   Search, 
   ShoppingCart, 
@@ -9,6 +10,8 @@ import {
   Camera, 
   Package, 
   CreditCard,
+  Banknote,
+  CheckCircle,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,13 +36,18 @@ export function Scanner() {
   const [searchResults, setSearchResults] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState("");
+  const [processingScan, setProcessingScan] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [amountPaid, setAmountPaid] = useState("");
+  const [saleSuccessData, setSaleSuccessData] = useState(null);
+  const [showChangeSummary, setShowChangeSummary] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const { showToast } = useToast();
   const searchInputRef = useRef(null);
   
   // Scanner refs
   const lastScannedRef = useRef("");
+  const scanTimeoutRef = useRef(null);
   const scannerInitializedRef = useRef(false);
 
   // Initialize scanner when scanning
@@ -51,6 +59,9 @@ export function Scanner() {
     return () => {
       if (scannerInitializedRef.current) {
         stopScanner();
+      }
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
       }
     };
   }, [isScanning]);
@@ -108,17 +119,24 @@ export function Scanner() {
     // Set up barcode detection handler
     Quagga.onDetected((result) => {
       const code = result.codeResult.code;
-      console.log("Raw barcode detected:", JSON.stringify(code));
-      console.log("Barcode length:", code.length);
-      console.log("Barcode chars:", code.split('').map(c => c.charCodeAt(0)));
       
-      if (code && code !== lastScannedRef.current) {
+      // Basic validation for scanned code
+      if (!code || code.length < 3) return;
+
+      if (code !== lastScannedRef.current) {
         lastScannedRef.current = code;
+        
+        // Reset lastScannedRef after 2 seconds to allow re-scanning the same item
+        if (scanTimeoutRef.current) clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = setTimeout(() => {
+          lastScannedRef.current = "";
+        }, 2000);
+
         handleBarcodeDetected(code);
       }
     });
 
-    // Set up processed frame handler for visualization
+    // ... (processed frame handler remains the same)
     Quagga.onProcessed((result) => {
       const drawingCtx = Quagga.canvas.ctx.overlay;
       const drawingCanvas = Quagga.canvas.dom.overlay;
@@ -174,49 +192,55 @@ export function Scanner() {
   };
 
   const handleBarcodeDetected = async (barcode) => {
-    console.log("Processing barcode:", barcode);
+    if (processingScan) return;
     await processScannedBarcode(barcode);
   };
 
   // Process a scanned barcode - look up product and add to cart
   const processScannedBarcode = async (barcode) => {
-    console.log("Processing barcode:", barcode);
+    setProcessingScan(true);
     try {
       const response = await productService.getByBarcode(barcode);
-      console.log("API response status:", response.status);
-      console.log("API response data:", response.data);
       
       if (response.data) {
         addToCart(response.data);
-        showToast(`Scanned: ${response.data.name}`, "success");
+        // Visual feedback
+        const container = document.querySelector("#scanner-container");
+        if (container) {
+          container.classList.add("scan-success-flash");
+          setTimeout(() => container.classList.remove("scan-success-flash"), 300);
+        }
       } else {
-        console.log("Product not found for barcode:", barcode);
         showToast(`Product not found for ${barcode}`, "warning");
       }
     } catch (error) {
-      console.error("API error:", error);
-      showToast("Failed to lookup barcode", "error");
+      console.error("Lookup error:", error);
+      showToast("Barcode lookup failed", "error");
+    } finally {
+      setProcessingScan(false);
     }
   };
 
-  const handleSearch = async (val) => {
+  useEffect(() => {
+    const handler = setTimeout(async () => {
+      if (searchTerm.length < 2) {
+        setSearchResults([]);
+        return;
+      }
+      
+      try {
+        const response = await productService.getAll({ search: searchTerm, limit: 5 });
+        setSearchResults(response.data || []);
+      } catch {
+        showToast("Search error occurred", "error");
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  const handleSearch = (val) => {
     setSearchTerm(val);
-    if (val.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    
-    try {
-      const response = await productService.getAll();
-      const list = response.data || [];
-      const filtered = list.filter(p => 
-        p.name.toLowerCase().includes(val.toLowerCase()) || 
-        p.barcode?.includes(val)
-      ).slice(0, 5);
-      setSearchResults(filtered);
-    } catch {
-      showToast("Search error occurred", "error");
-    }
   };
 
   const addToCart = (product) => {
@@ -276,22 +300,39 @@ export function Scanner() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     
+    const total = calculateTotal();
+    const paid = parseFloat(amountPaid) || 0;
+    
+    if (paid < total) {
+      showToast(`Insufficient payment. Need ₱${(total - paid).toLocaleString()}`, "error");
+      return;
+    }
+
     setLoading(true);
     try {
       const saleData = {
         items: cart.map(item => ({
           product_id: item.id,
           quantity: item.quantity,
-          price: item.unit_price || item.price || 0
+          unit_price: item.unit_price || item.price || 0
         })),
-        total_amount: calculateTotal()
+        payment_method: "cash",
+        amount_paid: paid,
+        discount: 0
       };
       
-      await salesService.create(saleData);
+      const response = await salesService.create(saleData);
+      
+      // Store success data for the summary
+      setSaleSuccessData(response.data || response);
+      setShowChangeSummary(true);
+      
       showToast("Sale completed successfully!", "success");
       setCart([]);
-    } catch {
-      showToast("Checkout failed", "error");
+      setAmountPaid("");
+    } catch (error) {
+      const message = error.message || "Checkout failed";
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }
@@ -440,68 +481,149 @@ export function Scanner() {
 
       {/* Right Pane: Checkout */}
       <div className="flex flex-col gap-6">
-        <Card className="sticky top-6">
-          <CardHeader>
-            <CardTitle>Checkout</CardTitle>
-            <CardDescription>Finalize the transaction</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>₱{calculateTotal().toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Discount</span>
-                <span>₱0.00</span>
-              </div>
-              <div className="pt-4 border-t flex justify-between items-end">
-                <span className="text-lg font-bold">Total</span>
-                <span className="text-3xl font-black text-blue-600">
-                  ₱{calculateTotal().toLocaleString()}
-                </span>
-              </div>
-            </div>
+        <Card className="sticky top-6 overflow-hidden">
+          {showChangeSummary && saleSuccessData ? (
+             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <CardHeader className="bg-primary text-primary-foreground pb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle className="h-5 w-5" />
+                    <CardTitle>Sale Complete</CardTitle>
+                  </div>
+                  <CardDescription className="text-primary-foreground/80">
+                    Transaction recorded successfully.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-muted-foreground font-medium">Total Amount</span>
+                      <span className="text-xl font-bold">₱{Number(saleSuccessData.total_amount).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b">
+                      <span className="text-muted-foreground font-medium">Payment Received</span>
+                      <span className="text-xl font-bold">₱{Number(saleSuccessData.payment_received).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-4 bg-primary/5 rounded-lg px-3">
+                      <span className="text-primary font-bold">Change Given</span>
+                      <span className="text-3xl font-black text-primary">₱{Number(saleSuccessData.change_given).toLocaleString()}</span>
+                    </div>
+                  </div>
 
-            <div className="pt-6 space-y-3">
-              <Button 
-                className="w-full h-16 text-lg font-bold" 
-                size="lg"
-                disabled={cart.length === 0 || loading}
-                onClick={handleCheckout}
-              >
-                {loading ? "Processing..." : "Complete Sale"}
-                {!loading && <CreditCard className="ml-2 h-5 w-5" />}
-              </Button>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={toggleCamera}
-              >
-                <Camera className="mr-2 h-4 w-4" />
-                {isScanning ? "Close Camera" : "Open Camera Scanner"}
-              </Button>
-              
-              {/* Camera permission error with instructions */}
-              {cameraError && (
-                <div className="w-full p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm">
-                  <p className="font-medium text-destructive mb-2">{cameraError}</p>
-                  <div className="text-muted-foreground">
-                    <p className="font-medium mb-1">To fix this:</p>
-                    <ul className="list-disc list-inside space-y-1 text-xs">
-                      <li>Click "Allow" when prompted for camera access</li>
-                      <li>If no prompt appeared, check browser address bar for camera icon</li>
-                      <li>Make sure no other app is using your camera</li>
-                      <li>Try refreshing the page</li>
-                    </ul>
+                  <div className="grid grid-cols-1 gap-3">
+                    <Button 
+                      className="w-full h-12 font-bold" 
+                      onClick={() => {
+                        setShowChangeSummary(false);
+                        setSaleSuccessData(null);
+                        setAmountPaid("");
+                      }}
+                    >
+                      Next Transaction
+                    </Button>
+                    <Button variant="outline" className="w-full h-12" asChild>
+                      <Link to="/sales">View History</Link>
+                    </Button>
+                  </div>
+                </CardContent>
+             </div>
+          ) : (
+            <>
+              <CardHeader>
+                <CardTitle>Checkout</CardTitle>
+                <CardDescription>Finalize the transaction</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>₱{calculateTotal().toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Discount</span>
+                    <span>₱0.00</span>
+                  </div>
+                  <div className="pt-4 border-t flex justify-between items-end">
+                    <span className="text-lg font-bold">Total</span>
+                    <span className="text-3xl font-black text-blue-600">
+                      ₱{calculateTotal().toLocaleString()}
+                    </span>
                   </div>
                 </div>
-              )}
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col items-center gap-2 text-[11px] text-muted-foreground bg-muted/50 py-4">
+
+                <div className="pt-4 space-y-4 border-t">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold flex items-center gap-2">
+                      <Banknote className="h-4 w-4 text-primary" />
+                      Amount Paid
+                    </label>
+                    <div className="relative">
+                       <span className="absolute left-3 top-2.5 font-bold text-muted-foreground">₱</span>
+                       <Input
+                         type="number"
+                         placeholder="0.00"
+                         className="pl-8 h-12 text-xl font-bold"
+                         value={amountPaid}
+                         onChange={(e) => setAmountPaid(e.target.value)}
+                         disabled={loading}
+                       />
+                    </div>
+                  </div>
+
+                  {amountPaid && parseFloat(amountPaid) > 0 && (
+                    <div className={`p-4 rounded-lg flex justify-between items-center ${
+                      parseFloat(amountPaid) >= calculateTotal() 
+                        ? "bg-green-50 text-green-700 border border-green-200" 
+                        : "bg-red-50 text-red-700 border border-red-200"
+                    }`}>
+                      <span className="text-sm font-bold uppercase tracking-tight">
+                        {parseFloat(amountPaid) >= calculateTotal() ? "Change Due" : "Balance Due"}
+                      </span>
+                      <span className="text-2xl font-black">
+                        ₱{Math.abs(parseFloat(amountPaid) - calculateTotal()).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  <Button 
+                    className="w-full h-16 text-lg font-bold shadow-lg" 
+                    size="lg"
+                    disabled={cart.length === 0 || loading || !amountPaid || parseFloat(amountPaid) < calculateTotal()}
+                    onClick={handleCheckout}
+                  >
+                    {loading ? "Processing..." : "Complete Sale"}
+                    {!loading && <CreditCard className="ml-2 h-5 w-5" />}
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full h-12"
+                    onClick={toggleCamera}
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
+                    {isScanning ? "Close Camera" : "Open Camera Scanner"}
+                  </Button>
+                  
+                  {cameraError && (
+                    <div className="w-full p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm">
+                      <p className="font-medium text-destructive mb-2">{cameraError}</p>
+                      <div className="text-muted-foreground">
+                        <p className="font-medium mb-1">To fix this:</p>
+                        <ul className="list-disc list-inside space-y-1 text-xs">
+                          <li>Click "Allow" when prompted for camera access</li>
+                          <li>If no prompt appeared, check browser address bar for camera icon</li>
+                          <li>Make sure no other app is using your camera</li>
+                          <li>Try refreshing the page</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </>
+          )}
+          <CardFooter className="flex flex-col items-center gap-2 text-[11px] text-muted-foreground bg-muted/50 py-4 border-t">
             <div className="flex items-center gap-1 font-medium">
-              <Scan className="h-3 w-3" /> AVRYX SCANNER v1.0
+              <Scan className="h-3 w-3" /> AVRYX SCANNER v1.1
             </div>
             <p>Ready for next transaction</p>
           </CardFooter>
