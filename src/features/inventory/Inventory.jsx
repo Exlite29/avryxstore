@@ -146,7 +146,7 @@ export function Inventory() {
     }
   };
 
-  const lowStockCount = inventory.filter(item => Number(item.stock_quantity || item.stock || 0) <= Number(item.low_stock_threshold || item.min_stock_level || 5)).length;
+  const lowStockCount = inventory.filter(item => Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0) <= Number(item.low_stock_threshold || item.min_stock_level || 5)).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -248,7 +248,7 @@ export function Inventory() {
                   </TableRow>
                 ) : (
                   inventory.map((item) => {
-                    const isLow = Number(item.stock_quantity || item.stock || 0) <= Number(item.low_stock_threshold || item.min_stock_level || 5);
+                    const isLow = Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0) <= Number(item.low_stock_threshold || item.min_stock_level || 5);
                     return (
                       <TableRow key={item.id}>
                         <TableCell>
@@ -258,7 +258,7 @@ export function Inventory() {
                         <TableCell>{item.category || "General"}</TableCell>
                         <TableCell className="text-right font-mono">
                           <span className={isLow ? "text-destructive font-bold" : ""}>
-                            {item.stock_quantity || item.stock || 0}
+                            {item.total_inventory_qty || item.stock_quantity || item.stock || 0}
                           </span>
                           <span className="text-[10px] text-muted-foreground ml-1">/ {item.unit || "pcs"}</span>
                         </TableCell>

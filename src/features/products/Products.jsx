@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, MoreHorizontal, Package, RefreshCw, Trash2, Edit } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Package, RefreshCw, Trash2, Edit, AlertTriangle, FileUp, Filter, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import productService from "./productService";
+import inventoryService from "../inventory/inventoryService";
 import { useToast } from "@/contexts/ToastContext";
 import { ProductForm } from "./ProductForm";
 
@@ -40,27 +41,39 @@ export function Products() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const limit = 10;
   const { showToast } = useToast();
 
-  const fetchProducts = async (currentSearch = searchTerm, currentPage = page) => {
+  const fetchProducts = async (currentSearch = searchTerm, currentPage = page, lowStock = showLowStockOnly) => {
     setLoading(true);
     try {
-      const data = await productService.getAll({
-        page: currentPage,
-        limit,
-        search: currentSearch
-      });
+      let response;
+      if (lowStock) {
+        response = await productService.getLowStock();
+      } else {
+        const params = {
+          page: currentPage,
+          limit,
+          search: currentSearch
+        };
+        // Only add category if it's not "all"
+        if (selectedCategory && selectedCategory !== "all") {
+          params.category = selectedCategory;
+        }
+        response = await productService.getAll(params);
+      }
       
-      const invList = data.data || [];
+      // Robust data extraction
+      const invList = response.data || response.products || (Array.isArray(response) ? response : []);
       setProducts(invList);
       
-      // Update pagination info if available from backend
-      if (data.pagination) {
-        setTotalPages(data.pagination.totalPages || 1);
-        setTotalCount(data.pagination.total || invList.length);
+      if (response.pagination) {
+        setTotalPages(response.pagination.totalPages || 1);
+        setTotalCount(response.pagination.total || invList.length);
       } else {
-        // Fallback for simple list responses
         setTotalPages(1);
         setTotalCount(invList.length);
       }
@@ -70,6 +83,18 @@ export function Products() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await productService.getCategories();
+        setCategories(response.data || []);
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     // Simple debounce for search
@@ -82,10 +107,10 @@ export function Products() {
   }, [searchTerm]);
 
   useEffect(() => {
-    if (page > 1) {
-      fetchProducts(searchTerm, page);
+    if (page > 1 || selectedCategory !== "all" || showLowStockOnly) {
+      fetchProducts(searchTerm, page, showLowStockOnly);
     }
-  }, [page]);
+  }, [page, selectedCategory, showLowStockOnly]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
@@ -102,26 +127,56 @@ export function Products() {
   const handleSave = async (formData) => {
     setSaving(true);
     try {
+      let response;
       if (editingProduct) {
-        await productService.update(editingProduct.id, formData);
+        response = await productService.update(editingProduct.id, formData);
         showToast("Product updated successfully", "success");
       } else {
-        await productService.create(formData);
+        response = await productService.create(formData);
         showToast("Product created successfully", "success");
       }
       setIsSheetOpen(false);
       setEditingProduct(null);
       fetchProducts(); 
+      return response;
     } catch (error) {
       showToast(editingProduct ? "Failed to update product" : "Failed to create product", "error");
+      throw error;
     } finally {
       setSaving(false);
     }
   };
 
-  const handleEdit = (product) => {
-    setEditingProduct(product);
-    setIsSheetOpen(true);
+  const handleEdit = async (product) => {
+    setLoading(true);
+    try {
+      const response = await productService.getById(product.id);
+      setEditingProduct(response.data || product);
+      setIsSheetOpen(true);
+    } catch (error) {
+      showToast("Failed to fetch product details", "error");
+      // Fallback to local data
+      setEditingProduct(product);
+      setIsSheetOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickStockUpdate = async (product, amount) => {
+    try {
+      // Use inventory service addStock endpoint
+      await inventoryService.addStock(product.id, { 
+        quantity: amount,
+        reason: amount > 0 ? "Quick Restock" : "Quick Manual Adjustment"
+      });
+      showToast("Stock updated", "success");
+      
+      // Fetch fresh data to get updated stock from inventory table
+      fetchProducts();
+    } catch (error) {
+      showToast("Failed to update stock", "error");
+    }
   };
 
   const openAddSheet = () => {
@@ -137,10 +192,49 @@ export function Products() {
           <p className="text-muted-foreground">Manage your inventory, categories, and stock levels.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchProducts} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={() => fetchProducts()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
+          <div className="relative">
+            <input
+              type="file"
+              id="bulk-import"
+              className="hidden"
+              accept=".json,.csv"
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                  setLoading(true);
+                  const reader = new FileReader();
+                  reader.onload = async (event) => {
+                    try {
+                      // Basic bulk import expects array of products
+                      const products = JSON.parse(event.target.result);
+                      await productService.bulkImport(products);
+                      showToast("Bulk import successful", "success");
+                      fetchProducts();
+                    } catch (err) {
+                      showToast("Invalid file format. Please use JSON.", "error");
+                    }
+                  };
+                  reader.readAsText(file);
+                } catch (err) {
+                  showToast("Bulk import failed", "error");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            />
+            <Button variant="outline" size="sm" asChild>
+              <label htmlFor="bulk-import" className="cursor-pointer">
+                <FileUp className="h-4 w-4 mr-2" />
+                Bulk Import
+              </label>
+            </Button>
+          </div>
           <Button size="sm" onClick={openAddSheet}>
             <Plus className="h-4 w-4 mr-2" />
             Add Product
@@ -155,15 +249,48 @@ export function Products() {
               <CardTitle>All Products</CardTitle>
               <CardDescription>A list of all products in your store.</CardDescription>
             </div>
-            <div className="relative w-full max-w-xs">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search products..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={showLowStockOnly ? "destructive" : "outline"} 
+                  size="sm"
+                  onClick={() => {
+                    setShowLowStockOnly(!showLowStockOnly);
+                    setPage(1);
+                  }}
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  {showLowStockOnly ? "Showing Low Stock" : "Filter Low Stock"}
+                </Button>
+                
+                <div className="flex items-center gap-1 border rounded-md px-2 h-9 bg-background">
+                  <Filter className="h-4 w-4 text-muted-foreground mr-1" />
+                  <select 
+                    className="bg-transparent text-sm focus:outline-none min-w-[120px]"
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map((cat, i) => (
+                      <option key={i} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="relative w-full max-w-xs ml-auto">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search products..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -224,12 +351,30 @@ export function Products() {
                         ₱{Number(product.unit_price || product.price || 0).toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <span className={`font-bold ${Number(product.stock_quantity || product.stock || 0) <= Number(product.low_stock_threshold || product.min_stock_level || 5) ? 'text-destructive' : ''}`}>
-                          {product.stock_quantity || product.stock || 0}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground ml-1">
-                          / {product.unit || 'pcs'}
-                        </span>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6" 
+                            onClick={() => handleQuickStockUpdate(product, -1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className={`font-bold ${Number(product.total_inventory_qty || product.stock_quantity || product.stock || 0) <= Number(product.low_stock_threshold || product.min_stock_level || 5) ? 'text-destructive' : ''}`}>
+                            {product.total_inventory_qty || product.stock_quantity || product.stock || 0}
+                          </span>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-6 w-6" 
+                            onClick={() => handleQuickStockUpdate(product, 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {product.unit || 'pcs'}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

@@ -12,7 +12,10 @@ import {
   CreditCard,
   Banknote,
   CheckCircle,
-  X
+  X,
+  Eye,
+  Loader2,
+  Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,9 +28,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useToast } from "@/contexts/ToastContext";
 import productService from "../products/productService";
 import salesService from "../sales/salesService";
+import visualRecognitionService from "./visualRecognitionService";
 import Quagga from "@ericblade/quagga2";
 
 export function Scanner() {
@@ -42,6 +53,9 @@ export function Scanner() {
   const [saleSuccessData, setSaleSuccessData] = useState(null);
   const [showChangeSummary, setShowChangeSummary] = useState(false);
   const [cameraError, setCameraError] = useState(null);
+  const [isRecognizing, setIsRecognizing] = useState(false);
+  const [recognitionResults, setRecognitionResults] = useState(null);
+  const [showRecognitionDialog, setShowRecognitionDialog] = useState(false);
   const { showToast } = useToast();
   const searchInputRef = useRef(null);
   
@@ -181,6 +195,67 @@ export function Scanner() {
     }
     setIsScanning(false);
     lastScannedRef.current = "";
+  };
+
+  // Capture a frame from the live Quagga video feed
+  const captureFrame = () => {
+    const video = document.querySelector("#scanner-container video");
+    if (!video) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  };
+
+  // AI Visual Recognition handler
+  const handleVisualRecognize = async () => {
+    if (!isScanning || !scannerInitializedRef.current) {
+      showToast("Open the camera first to use AI recognition", "warning");
+      return;
+    }
+
+    const base64Image = captureFrame();
+    if (!base64Image) {
+      showToast("Could not capture image from camera", "error");
+      return;
+    }
+
+    setIsRecognizing(true);
+    try {
+      const response = await visualRecognitionService.recognizeFromBase64(base64Image);
+      const results = response?.data || response;
+
+      setRecognitionResults(results);
+      setShowRecognitionDialog(true);
+
+      const matchCount = results?.matchedProducts?.length || results?.allRankedProducts?.length || 0;
+      if (matchCount > 0) {
+        showToast(`Found ${matchCount} potential match${matchCount > 1 ? "es" : ""}`, "success");
+      } else {
+        showToast("No products matched. Try scanning the barcode.", "warning");
+      }
+    } catch (error) {
+      console.error("Visual recognition error:", error);
+      showToast(error.message || "Visual recognition failed", "error");
+    } finally {
+      setIsRecognizing(false);
+    }
+  };
+
+  // Add a recognized product to the cart
+  const addRecognizedProduct = (product) => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      barcode: product.barcode,
+      unit_price: product.unit_price,
+      category: product.category,
+      stock_quantity: product.stock_quantity,
+    });
+    setShowRecognitionDialog(false);
   };
 
   const toggleCamera = () => {
@@ -592,16 +667,29 @@ export function Scanner() {
                   >
                     {loading ? "Processing..." : "Complete Sale"}
                     {!loading && <CreditCard className="ml-2 h-5 w-5" />}
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="w-full h-12"
-                    onClick={toggleCamera}
-                  >
-                    <Camera className="mr-2 h-4 w-4" />
-                    {isScanning ? "Close Camera" : "Open Camera Scanner"}
-                  </Button>
+                  </Button>                   <div className="grid grid-cols-2 gap-2">
+                     <Button 
+                       variant="outline" 
+                       className="w-full h-12"
+                       onClick={toggleCamera}
+                     >
+                       <Camera className="mr-2 h-4 w-4" />
+                       {isScanning ? "Close Camera" : "Camera"}
+                     </Button>
+                     <Button 
+                       variant="outline" 
+                       className="w-full h-12 border-violet-300 text-violet-700 hover:bg-violet-50 hover:text-violet-800"
+                       onClick={handleVisualRecognize}
+                       disabled={!isScanning || isRecognizing}
+                     >
+                       {isRecognizing ? (
+                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                       ) : (
+                         <Eye className="mr-2 h-4 w-4" />
+                       )}
+                       {isRecognizing ? "Analyzing..." : "AI Identify"}
+                     </Button>
+                   </div>
                   
                   {cameraError && (
                     <div className="w-full p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm">
@@ -641,6 +729,97 @@ export function Scanner() {
           }}
         />
       </div>
+
+      {/* AI Recognition Results Dialog */}
+      <Dialog open={showRecognitionDialog} onOpenChange={setShowRecognitionDialog}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5 text-violet-600" />
+              AI Recognition Results
+            </DialogTitle>
+            <DialogDescription>
+              Select a product to add to the cart.
+            </DialogDescription>
+          </DialogHeader>
+
+          {recognitionResults && (
+            <div className="space-y-3 mt-2">
+              {/* Dominant Colors */}
+              {recognitionResults.dominantColors && recognitionResults.dominantColors.length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Detected colors:</span>
+                  <div className="flex gap-1">
+                    {recognitionResults.dominantColors.slice(0, 5).map((c, i) => (
+                      <div
+                        key={i}
+                        className="h-4 w-4 rounded-full border"
+                        style={{ backgroundColor: c.color }}
+                        title={`${c.color} (${Math.round(c.percentage * 100)}%)`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Matched products */}
+              {(recognitionResults.matchedProducts?.length > 0 || recognitionResults.allRankedProducts?.length > 0) ? (
+                <div className="space-y-2">
+                  {(recognitionResults.matchedProducts?.length > 0
+                    ? recognitionResults.matchedProducts
+                    : recognitionResults.allRankedProducts
+                  ).map((product) => (
+                    <button
+                      key={product.id}
+                      className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-violet-50 hover:border-violet-300 transition-colors text-left"
+                      onClick={() => addRecognizedProduct(product)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-violet-100 flex items-center justify-center">
+                          <Package className="h-5 w-5 text-violet-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-sm">{product.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {product.category}
+                            {product.barcode && ` · ${product.barcode}`}
+                          </div>
+                          {product.matchScore && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                              <span className="text-[10px] text-muted-foreground">Score: {product.matchScore}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-sm">₱{Number(product.unit_price || 0).toLocaleString()}</div>
+                        <div className="text-[10px] text-muted-foreground">Stock: {product.stock_quantity ?? "—"}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground space-y-2">
+                  <Package className="h-10 w-10 mx-auto opacity-20" />
+                  <p className="font-medium">No matches found</p>
+                  <p className="text-xs">Try scanning the barcode or searching manually.</p>
+                </div>
+              )}
+
+              {/* Suggestions */}
+              {recognitionResults.suggestions && recognitionResults.suggestions.length > 0 && (
+                <div className="border-t pt-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Suggestions</p>
+                  {recognitionResults.suggestions.map((s, i) => (
+                    <p key={i} className="text-xs text-muted-foreground">• {s.message}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -74,7 +74,12 @@ const getProductErrorMessage = (error, operation) => {
 const productService = {
   getAll: async (params = {}) => {
     try {
-      const query = new URLSearchParams(params).toString();
+      // Sanitize params: remove undefined, null, or empty string values
+      const sanitizedParams = Object.fromEntries(
+        Object.entries(params).filter(([_, v]) => v != null && v !== "")
+      );
+      
+      const query = new URLSearchParams(sanitizedParams).toString();
       const endpoint = `/api/v1/products${query ? `?${query}` : ""}`;
       const data = await api(endpoint);
       return data;
