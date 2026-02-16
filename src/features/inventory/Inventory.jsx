@@ -9,7 +9,8 @@ import {
   Search,
   History,
   Settings2,
-  PackageCheck
+  PackageCheck,
+  Package
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -155,7 +156,7 @@ export function Inventory() {
           <h2 className="text-3xl font-bold tracking-tight">Inventory</h2>
           <p className="text-muted-foreground">Monitor stock levels, valuation, and product movements.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+        <Button variant="outline" size="sm" onClick={() => fetchData()} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Refresh Data
         </Button>
@@ -230,8 +231,10 @@ export function Inventory() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[80px]">Image</TableHead>
                   <TableHead>Product</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead className="text-right">Price</TableHead>
                   <TableHead className="text-right">Stock Level</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -240,11 +243,11 @@ export function Inventory() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">Loading...</TableCell>
+                    <TableCell colSpan={7} className="h-24 text-center">Loading...</TableCell>
                   </TableRow>
                 ) : inventory.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No inventory records found.</TableCell>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">No inventory records found.</TableCell>
                   </TableRow>
                 ) : (
                   inventory.map((item) => {
@@ -252,10 +255,22 @@ export function Inventory() {
                     return (
                       <TableRow key={item.id}>
                         <TableCell>
+                          <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center overflow-hidden">
+                            {item.image_url ? (
+                              <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
                           <div className="font-medium">{item.name}</div>
                           <div className="text-xs text-muted-foreground font-mono">{item.barcode}</div>
                         </TableCell>
                         <TableCell>{item.category || "General"}</TableCell>
+                        <TableCell className="text-right">
+                          ₱{Number(item.unit_price || 0).toLocaleString()}
+                        </TableCell>
                         <TableCell className="text-right font-mono">
                           <span className={isLow ? "text-destructive font-bold" : ""}>
                             {item.total_inventory_qty || item.stock_quantity || item.stock || 0}
