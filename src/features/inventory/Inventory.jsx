@@ -37,7 +37,14 @@ import productService from "../products/productService";
 
 export function Inventory() {
   const [inventory, setInventory] = useState([]);
+  const [allInventory, setAllInventory] = useState([]); // For stats calculation
   const [valuation, setValuation] = useState({ total_value: 0, item_count: 0 });
+  const [stats, setStats] = useState({
+    totalItems: 0,
+    lowStockCount: 0,
+    totalValuation: 0,
+    healthyCount: 0
+  });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -57,21 +64,109 @@ export function Inventory() {
   const fetchData = async (currentSearch = searchTerm, currentPage = page) => {
     setLoading(true);
     try {
-      const [invData, valData] = await Promise.all([
+      // Fetch paginated inventory for table
+      const [invData, valData, allInvData] = await Promise.all([
         inventoryService.getAll({
           page: currentPage,
           limit,
           search: currentSearch
         }),
-        inventoryService.getValuation()
+        inventoryService.getValuation(),
+        // Fetch all inventory without pagination for stats calculation
+        inventoryService.getAll({ limit: 10000, search: "" })
       ]);
       
-      const invList = invData.inventory || invData.data || (Array.isArray(invData) ? invData : []);
-      setInventory(invList);
+      let invList = invData.inventory || invData.data || (Array.isArray(invData) ? invData : []);
+      
+      // Get all inventory for stats (not paginated)
+      let allInvList = allInvData.inventory || allInvData.data || (Array.isArray(allInvData) ? allInvData : []);
+      setAllInventory(allInvList);
+      
+      // Also fetch products to ensure we have complete product info
+      let productMap = new Map();
+      try {
+        const prodResponse = await productService.getAll({ limit: 1000 });
+        const prodList = prodResponse.data || prodResponse.products || (Array.isArray(prodResponse) ? prodResponse : []);
+        prodList.forEach(product => {
+          productMap.set(product.id, product);
+        });
+      } catch (prodError) {
+        console.warn("Could not fetch products data:", prodError);
+      }
+      
+      // Merge product data with inventory to ensure name, barcode, etc. are in sync
+      const mergedInventory = invList.map(item => {
+        const prodData = productMap.get(item.id) || productMap.get(item.product_id);
+        if (prodData) {
+          return {
+            ...item,
+            name: item.name || prodData.name,
+            barcode: item.barcode || prodData.barcode,
+            category: item.category || prodData.category,
+            unit_price: item.unit_price || prodData.unit_price,
+            unit: item.unit || prodData.unit,
+            image_url: item.image_url || prodData.image_url,
+            low_stock_threshold: item.low_stock_threshold || prodData.low_stock_threshold || prodData.min_stock_level || 5
+          };
+        }
+        return item;
+      });
+      
+      // Merge product data with ALL inventory for stats
+      const mergedAllInventory = allInvList.map(item => {
+        const prodData = productMap.get(item.id) || productMap.get(item.product_id);
+        if (prodData) {
+          return {
+            ...item,
+            name: item.name || prodData.name,
+            barcode: item.barcode || prodData.barcode,
+            category: item.category || prodData.category,
+            unit_price: item.unit_price || prodData.unit_price,
+            unit: item.unit || prodData.unit,
+            image_url: item.image_url || prodData.image_url,
+            low_stock_threshold: item.low_stock_threshold || prodData.low_stock_threshold || prodData.min_stock_level || 5
+          };
+        }
+        return {
+          ...item,
+          low_stock_threshold: item.low_stock_threshold || item.min_stock_level || 5
+        };
+      });
+      
+      setInventory(mergedInventory);
+      
+      // Calculate stats from ALL inventory
+      const lowStockItems = mergedAllInventory.filter(item => {
+        const qty = Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0);
+        const threshold = Number(item.low_stock_threshold || item.min_stock_level || 5);
+        return qty <= threshold;
+      });
+      
+      const healthyItems = mergedAllInventory.filter(item => {
+        const qty = Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0);
+        const threshold = Number(item.low_stock_threshold || item.min_stock_level || 5);
+        return qty > threshold;
+      });
+      
+      // Calculate total valuation from all items
+      const totalVal = mergedAllInventory.reduce((sum, item) => {
+        const qty = Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0);
+        const price = Number(item.unit_price || 0);
+        return sum + (qty * price);
+      }, 0);
+      
+      setStats({
+        totalItems: mergedAllInventory.length,
+        lowStockCount: lowStockItems.length,
+        totalValuation: totalVal,
+        healthyCount: healthyItems.length
+      });
+      
+      // Also update valuation from API response as fallback
       const vData = valData.data || valData || {};
       setValuation({
-        total_value: vData.total_value || vData.value || 0,
-        item_count: vData.item_count || vData.count || 0
+        total_value: vData.total_value || vData.value || totalVal,
+        item_count: vData.item_count || vData.count || mergedAllInventory.length
       });
       
       if (invData.pagination) {
@@ -83,6 +178,7 @@ export function Inventory() {
       }
     } catch (error) {
       showToast("Failed to fetch inventory data", "error");
+      console.error("Inventory fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -147,8 +243,6 @@ export function Inventory() {
     }
   };
 
-  const lowStockCount = inventory.filter(item => Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0) <= Number(item.low_stock_threshold || item.min_stock_level || 5)).length;
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -170,7 +264,7 @@ export function Inventory() {
             <Boxes className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{valuation.item_count || 0}</div>
+            <div className="text-2xl font-bold">{stats.totalItems || 0}</div>
             <p className="text-xs text-muted-foreground">Across all categories</p>
           </CardContent>
         </Card>
@@ -180,8 +274,8 @@ export function Inventory() {
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${lowStockCount > 0 ? 'text-destructive' : ''}`}>
-              {lowStockCount}
+            <div className={`text-2xl font-bold ${stats.lowStockCount > 0 ? 'text-destructive' : ''}`}>
+              {stats.lowStockCount}
             </div>
             <p className="text-xs text-muted-foreground">Items requiring restock</p>
           </CardContent>
@@ -192,7 +286,7 @@ export function Inventory() {
             <TrendingUp className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">₱{Number(valuation.total_value || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-blue-600">₱{Number(stats.totalValuation || 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">Based on current stock price</p>
           </CardContent>
         </Card>
@@ -202,8 +296,10 @@ export function Inventory() {
             <PackageCheck className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">Healthy</div>
-            <p className="text-xs text-muted-foreground">Inventory sync active</p>
+            <div className={`text-2xl font-bold ${stats.healthyCount > 0 ? 'text-green-600' : 'text-yellow-600'}`}>
+              {stats.healthyCount > 0 ? 'Healthy' : 'Needs Attention'}
+            </div>
+            <p className="text-xs text-muted-foreground">{stats.healthyCount} items in stock</p>
           </CardContent>
         </Card>
       </div>
@@ -251,7 +347,9 @@ export function Inventory() {
                   </TableRow>
                 ) : (
                   inventory.map((item) => {
-                    const isLow = Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0) <= Number(item.low_stock_threshold || item.min_stock_level || 5);
+                    const qty = Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0);
+                    const threshold = Number(item.low_stock_threshold || item.min_stock_level || 5);
+                    const isLow = qty <= threshold;
                     return (
                       <TableRow key={item.id}>
                         <TableCell>

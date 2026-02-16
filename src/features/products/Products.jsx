@@ -67,8 +67,37 @@ export function Products() {
       }
       
       // Robust data extraction
-      const invList = response.data || response.products || (Array.isArray(response) ? response : []);
-      setProducts(invList);
+      let prodList = response.data || response.products || (Array.isArray(response) ? response : []);
+      
+      // Fetch inventory data to ensure stock quantities are in sync
+      let inventoryMap = new Map();
+      try {
+        const invResponse = await inventoryService.getAll({ limit: 1000 });
+        const invList = invResponse.data || invResponse.inventory || (Array.isArray(invResponse) ? invResponse : []);
+        invList.forEach(item => {
+          // Map by product_id or id
+          const key = item.product_id || item.id;
+          inventoryMap.set(key, item);
+        });
+      } catch (invError) {
+        console.warn("Could not fetch inventory data:", invError);
+      }
+      
+      // Merge inventory data with products
+      const mergedProducts = prodList.map(product => {
+        const invData = inventoryMap.get(product.id) || inventoryMap.get(product.product_id);
+        if (invData) {
+          return {
+            ...product,
+            total_inventory_qty: invData.total_inventory_qty ?? invData.stock_quantity ?? invData.stock ?? product.total_inventory_qty ?? product.stock_quantity ?? product.stock ?? 0,
+            low_stock_threshold: invData.low_stock_threshold ?? product.low_stock_threshold,
+            min_stock_level: invData.min_stock_level ?? product.min_stock_level
+          };
+        }
+        return product;
+      });
+      
+      setProducts(mergedProducts);
       
       if (response.pagination) {
         setTotalPages(response.pagination.totalPages || 1);
