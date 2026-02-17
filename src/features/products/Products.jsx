@@ -26,6 +26,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSkeletonLoading } from "@/hooks/useSkeletonLoading";
+import {
+  SkeletonTable,
+  SkeletonPageHeader,
+  SkeletonActions
+} from "@/components/ui/SkeletonComponents";
 import productService from "./productService";
 import inventoryService from "../inventory/inventoryService";
 import { useToast } from "@/contexts/ToastContext";
@@ -46,6 +53,7 @@ export function Products() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const limit = 10;
   const { showToast } = useToast();
+  const showSkeleton = useSkeletonLoading(loading, 3000);
 
   const fetchProducts = async (currentSearch = searchTerm, currentPage = page, lowStock = showLowStockOnly) => {
     setLoading(true);
@@ -215,256 +223,299 @@ export function Products() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Products</h2>
-          <p className="text-muted-foreground">Manage your inventory, categories, and stock levels.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => fetchProducts()} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <div className="relative">
-            <input
-              type="file"
-              id="bulk-import"
-              className="hidden"
-              accept=".json,.csv"
-              onChange={async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                try {
-                  setLoading(true);
-                  const reader = new FileReader();
-                  reader.onload = async (event) => {
-                    try {
-                      // Basic bulk import expects array of products
-                      const products = JSON.parse(event.target.result);
-                      await productService.bulkImport(products);
-                      showToast("Bulk import successful", "success");
-                      fetchProducts();
-                    } catch (err) {
-                      showToast("Invalid file format. Please use JSON.", "error");
-                    }
-                  };
-                  reader.readAsText(file);
-                } catch (err) {
-                  showToast("Bulk import failed", "error");
-                } finally {
-                  setLoading(false);
-                }
-              }}
-            />
-            <Button variant="outline" size="sm" asChild>
-              <label htmlFor="bulk-import" className="cursor-pointer">
-                <FileUp className="h-4 w-4 mr-2" />
-                Bulk Import
-              </label>
-            </Button>
-          </div>
-          <Button size="sm" onClick={openAddSheet}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle>All Products</CardTitle>
-              <CardDescription>A list of all products in your store.</CardDescription>
+      {/* Skeleton Loading State */}
+      {showSkeleton ? (
+        <>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <SkeletonPageHeader />
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 w-28" />
+              <Skeleton className="h-9 w-28" />
             </div>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant={showLowStockOnly ? "destructive" : "outline"} 
-                  size="sm"
-                  onClick={() => {
-                    setShowLowStockOnly(!showLowStockOnly);
-                    setPage(1);
-                  }}
-                >
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  {showLowStockOnly ? "Showing Low Stock" : "Filter Low Stock"}
-                </Button>
-                
-                <div className="flex items-center gap-1 border rounded-md px-2 h-9 bg-background">
-                  <Filter className="h-4 w-4 text-muted-foreground mr-1" />
-                  <select 
-                    className="bg-transparent text-sm focus:outline-none min-w-[120px]"
-                    value={selectedCategory}
-                    onChange={(e) => {
-                      setSelectedCategory(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="all">All Categories</option>
-                    {categories.map((cat, i) => (
-                      <option key={i} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Skeleton className="h-5 w-24" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <Skeleton className="h-9 w-32" />
+                  <Skeleton className="h-9 w-32" />
+                  <Skeleton className="h-10 w-64" />
                 </div>
               </div>
-
-              <div className="relative w-full max-w-xs ml-auto">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search products..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            </CardHeader>
+            <CardContent>
+              <SkeletonTable rows={10} columns={6} />
+              <div className="flex items-center justify-between mt-4">
+                <Skeleton className="h-4 w-48" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-9 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-9 w-20" />
+                </div>
               </div>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Image</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Loading products...
-                    </TableCell>
-                  </TableRow>
-                ) : products.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                      No products found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center overflow-hidden">
-                          {product.image_url ? (
-                            <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
-                          ) : (
-                            <Package className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div>
-                          {product.name}
-                          {product.barcode && (
-                            <div className="text-[10px] text-muted-foreground uppercase font-mono">
-                              {product.barcode}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                          {product.category || "Uncategorized"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        ₱{Number(product.unit_price || product.price || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6" 
-                            onClick={() => handleQuickStockUpdate(product, -1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className={`font-bold ${Number(product.total_inventory_qty || product.stock_quantity || product.stock || 0) <= Number(product.low_stock_threshold || product.min_stock_level || 5) ? 'text-destructive' : ''}`}>
-                            {product.total_inventory_qty || product.stock_quantity || product.stock || 0}
-                          </span>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6" 
-                            onClick={() => handleQuickStockUpdate(product, 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {product.unit || 'pcs'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleEdit(product)}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => handleDelete(product.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-muted-foreground">
-              Showing {products.length} of {totalCount} products
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Products</h2>
+              <p className="text-muted-foreground">Manage your inventory, categories, and stock levels.</p>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1 || loading}
-              >
-                Previous
+              <Button variant="outline" size="sm" onClick={() => fetchProducts()} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
               </Button>
-              <div className="text-sm font-medium px-2">
-                Page {page} of {totalPages}
+              <div className="relative">
+                <input
+                  type="file"
+                  id="bulk-import"
+                  className="hidden"
+                  accept=".json,.csv"
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    try {
+                      setLoading(true);
+                      const reader = new FileReader();
+                      reader.onload = async (event) => {
+                        try {
+                          // Basic bulk import expects array of products
+                          const products = JSON.parse(event.target.result);
+                          await productService.bulkImport(products);
+                          showToast("Bulk import successful", "success");
+                          fetchProducts();
+                        } catch (err) {
+                          showToast("Invalid file format. Please use JSON.", "error");
+                        }
+                      };
+                      reader.readAsText(file);
+                    } catch (err) {
+                      showToast("Bulk import failed", "error");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                />
+                <Button variant="outline" size="sm" asChild>
+                  <label htmlFor="bulk-import" className="cursor-pointer">
+                    <FileUp className="h-4 w-4 mr-2" />
+                    Bulk Import
+                  </label>
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages || loading}
-              >
-                Next
+              <Button size="sm" onClick={openAddSheet}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <CardTitle>All Products</CardTitle>
+                  <CardDescription>A list of all products in your store.</CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant={showLowStockOnly ? "destructive" : "outline"} 
+                      size="sm"
+                      onClick={() => {
+                        setShowLowStockOnly(!showLowStockOnly);
+                        setPage(1);
+                      }}
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      {showLowStockOnly ? "Showing Low Stock" : "Filter Low Stock"}
+                    </Button>
+                    
+                    <div className="flex items-center gap-1 border rounded-md px-2 h-9 bg-background">
+                      <Filter className="h-4 w-4 text-muted-foreground mr-1" />
+                      <select 
+                        className="bg-transparent text-sm focus:outline-none min-w-[120px]"
+                        value={selectedCategory}
+                        onChange={(e) => {
+                          setSelectedCategory(e.target.value);
+                          setPage(1);
+                        }}
+                      >
+                        <option value="all">All Categories</option>
+                        {categories.map((cat, i) => (
+                          <option key={i} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="relative w-full max-w-xs ml-auto">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search products..."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[100px]">Image</TableHead>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-right">Stock</TableHead>
+                      <TableHead className="w-[70px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          Loading products...
+                        </TableCell>
+                      </TableRow>
+                    ) : products.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                          No products found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      products.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center overflow-hidden">
+                              {product.image_url ? (
+                                <img src={product.image_url} alt={product.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <Package className="h-5 w-5 text-muted-foreground" />
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div>
+                              {product.name}
+                              {product.barcode && (
+                                <div className="text-[10px] text-muted-foreground uppercase font-mono">
+                                  {product.barcode}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                              {product.category || "Uncategorized"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            ₱{Number(product.unit_price || product.price || 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6" 
+                                onClick={() => handleQuickStockUpdate(product, -1)}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className={`font-bold ${Number(product.total_inventory_qty || product.stock_quantity || product.stock || 0) <= Number(product.low_stock_threshold || product.min_stock_level || 5) ? 'text-destructive' : ''}`}>
+                                {product.total_inventory_qty || product.stock_quantity || product.stock || 0}
+                              </span>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6" 
+                                onClick={() => handleQuickStockUpdate(product, 1)}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {product.unit || 'pcs'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleEdit(product)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => handleDelete(product.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {products.length} of {totalCount} products
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1 || loading}
+                  >
+                    Previous
+                  </Button>
+                  <div className="text-sm font-medium px-2">
+                    Page {page} of {totalPages}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages || loading}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent side="right" className="sm:max-w-md overflow-y-auto">

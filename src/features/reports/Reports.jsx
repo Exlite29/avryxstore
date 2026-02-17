@@ -28,7 +28,16 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/contexts/ToastContext";
+import { useSkeletonLoading } from "@/hooks/useSkeletonLoading";
+import {
+  SkeletonDashboardStats,
+  SkeletonChart,
+  SkeletonTable,
+  SkeletonPageHeader,
+  SkeletonActions
+} from "@/components/ui/SkeletonComponents";
 import reportService from "./reportService";
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -45,6 +54,7 @@ export function Reports() {
   });
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
+  const showSkeleton = useSkeletonLoading(loading, 3000);
 
   const fetchData = async () => {
     setLoading(true);
@@ -112,38 +122,57 @@ export function Reports() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Analytics & Reports</h2>
-          <p className="text-muted-foreground">Comprehensive insights into your store's performance.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Data
-          </Button>
-          <Button size="sm">
-            <Calendar className="h-4 w-4 mr-2" />
-            Last 30 Days
-          </Button>
-        </div>
-      </div>
+      {/* Skeleton Loading State */}
+      {showSkeleton ? (
+        <>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <SkeletonPageHeader />
+            <SkeletonActions count={2} />
+          </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-blue-600 text-white">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 opacity-50" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-black">₱{Number(metrics.total_sales || 0).toLocaleString()}</div>
-            <div className="flex items-center text-xs mt-1 text-blue-100">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              +{metrics.growth}% from last month
+          <SkeletonDashboardStats count={4} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SkeletonChart />
+            <SkeletonChart />
+          </div>
+
+          <SkeletonTable rows={5} columns={3} />
+        </>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Analytics & Reports</h2>
+              <p className="text-muted-foreground">Comprehensive insights into your store's performance.</p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh Data
+              </Button>
+              <Button size="sm">
+                <Calendar className="h-4 w-4 mr-2" />
+                Last 30 Days
+              </Button>
+            </div>
+          </div>
+
+          {/* KPI Cards */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card className="bg-blue-600 text-white">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                <DollarSign className="h-4 w-4 opacity-50" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-black">₱{Number(metrics.total_sales || 0).toLocaleString()}</div>
+                <div className="flex items-center text-xs mt-1 text-blue-100">
+                  <ArrowUpRight className="h-3 w-3 mr-1" />
+                  +{metrics.growth}% from last month
+                </div>
+              </CardContent>
+            </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Items Sold</CardTitle>
@@ -297,6 +326,8 @@ export function Reports() {
           </CardContent>
         </Card>
       </div>
+    </>
+      )}
     </div>
   );
 }

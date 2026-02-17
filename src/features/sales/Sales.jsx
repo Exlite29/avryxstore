@@ -31,7 +31,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/contexts/ToastContext";
+import { useSkeletonLoading } from "@/hooks/useSkeletonLoading";
+import {
+  SkeletonDashboardStats,
+  SkeletonTable,
+  SkeletonPageHeader,
+  SkeletonActions,
+  SkeletonSearchInput
+} from "@/components/ui/SkeletonComponents";
 import salesService from "./salesService";
 
 export function Sales() {
@@ -49,6 +58,7 @@ export function Sales() {
   const limit = 10;
   
   const { showToast } = useToast();
+  const showSkeleton = useSkeletonLoading(loading, 3000);
 
   const fetchData = async (currentSearch = searchTerm, currentPage = page) => {
     setLoading(true);
@@ -123,162 +133,199 @@ export function Sales() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Sales History</h2>
-          <p className="text-muted-foreground">Monitor and manage all store transactions.</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh History
-        </Button>
-      </div>
-
-      {/* Stats Summary */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="bg-blue-50 border-none shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-800">Today's Revenue</CardTitle>
-            <TrendingUp className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-blue-700">₱{Number(summary.total_revenue || 0).toLocaleString()}</div>
-            <p className="text-xs text-blue-600/70 font-medium">Calculated from completed sales</p>
-          </CardContent>
-        </Card>
-        <Card className="border-none shadow-sm bg-muted/30">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Transactions</CardTitle>
-            <Receipt className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{summary.sale_count || 0}</div>
-            <p className="text-xs text-muted-foreground">Successful sales today</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-green-50 border-none shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-800">Average Sale</CardTitle>
-            <CreditCard className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-black text-green-700">
-              ₱{summary.sale_count > 0 ? (summary.total_revenue / summary.sale_count).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 0}
-            </div>
-            <p className="text-xs text-green-600/70 font-medium">Per transaction on average</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle>Recent Transactions</CardTitle>
-              <CardDescription>A list of the latest sales from your store.</CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative w-full max-w-xs">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search Sale ID..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
+      {/* Skeleton Loading State */}
+      {showSkeleton ? (
+        <>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <SkeletonPageHeader />
+            <Skeleton className="h-9 w-36" />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[120px]">Sale ID</TableHead>
-                  <TableHead>Date & Time</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">Loading sales...</TableCell>
-                  </TableRow>
-                ) : sales.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No sales recorded today.</TableCell>
-                  </TableRow>
-                ) : (
-                  sales.map((sale) => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="font-mono text-xs uppercase font-bold">#{sale.id}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">{new Date(sale.created_at).toLocaleDateString()}</span>
-                          <span className="text-[10px] text-muted-foreground">{new Date(sale.created_at).toLocaleTimeString()}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-blue-600">
-                        ₱{Number(sale.total_amount).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {sale.status === "cancelled" ? (
-                          <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                            <CircleX className="h-3 w-3 mr-1" /> Cancelled
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                            <CircleCheck className="h-3 w-3 mr-1" /> Success
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleViewDetails(sale)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+
+          <SkeletonDashboardStats count={3} />
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-56" />
+                </div>
+                <SkeletonSearchInput />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <SkeletonTable rows={10} columns={5} />
+              <div className="flex items-center justify-between mt-4">
+                <Skeleton className="h-4 w-48" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-9 w-20" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-9 w-20" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight">Sales History</h2>
+              <p className="text-muted-foreground">Monitor and manage all store transactions.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh History
+            </Button>
+          </div>
+
+          {/* Stats Summary */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="bg-blue-50 border-none shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-blue-800">Today's Revenue</CardTitle>
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-black text-blue-700">₱{Number(summary.total_revenue || 0).toLocaleString()}</div>
+                <p className="text-xs text-blue-600/70 font-medium">Calculated from completed sales</p>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-sm bg-muted/30">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Transactions</CardTitle>
+                <Receipt className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{summary.sale_count || 0}</div>
+                <p className="text-xs text-muted-foreground">Successful sales today</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-green-50 border-none shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-green-800">Average Sale</CardTitle>
+                <CreditCard className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-black text-green-700">
+                  ₱{summary.sale_count > 0 ? (summary.total_revenue / summary.sale_count).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 0}
+                </div>
+                <p className="text-xs text-green-600/70 font-medium">Per transaction on average</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <CardTitle>Recent Transactions</CardTitle>
+                  <CardDescription>A list of the latest sales from your store.</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-full max-w-xs">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search Sale ID..."
+                      className="pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Button variant="outline" size="icon">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[120px]">Sale ID</TableHead>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-between mt-4">
-            <div className="text-sm text-muted-foreground">
-              Showing {sales.length} of {totalCount} transactions
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1 || loading}
-              >
-                Previous
-              </Button>
-              <div className="text-sm font-medium px-2">
-                Page {page} of {totalPages}
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">Loading sales...</TableCell>
+                      </TableRow>
+                    ) : sales.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No sales recorded today.</TableCell>
+                      </TableRow>
+                    ) : (
+                      sales.map((sale) => (
+                        <TableRow key={sale.id}>
+                          <TableCell className="font-mono text-xs uppercase font-bold">#{sale.id}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">{new Date(sale.created_at).toLocaleDateString()}</span>
+                              <span className="text-[10px] text-muted-foreground">{new Date(sale.created_at).toLocaleTimeString()}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-blue-600">
+                            ₱{Number(sale.total_amount).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {sale.status === "cancelled" ? (
+                              <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                                <CircleX className="h-3 w-3 mr-1" /> Cancelled
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                                <CircleCheck className="h-3 w-3 mr-1" /> Success
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleViewDetails(sale)}>
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages || loading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {sales.length} of {totalCount} transactions
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1 || loading}
+                  >
+                    Previous
+                  </Button>
+                  <div className="text-sm font-medium px-2">
+                    Page {page} of {totalPages}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages || loading}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Sale Details Sheet */}
       <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
