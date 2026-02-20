@@ -393,7 +393,7 @@ export function Inventory() {
                     ) : (
                       inventory.map((item) => {
                         const qty = Number(item.total_inventory_qty || item.stock_quantity || item.stock || 0);
-                        const threshold = Number(item.low_stock_threshold || item.min_stock_level || 5);
+                        const threshold = Number(item.low_stock_threshold ?? item.min_stock_level ?? 5);
                         const isLow = qty <= threshold;
                         return (
                           <TableRow key={item.id}>

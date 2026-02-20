@@ -39,10 +39,7 @@ apiClient.interceptors.request.use(
     }
     
     // Log request for debugging
-    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, {
-      headers: { ...config.headers, Authorization: token ? 'Bearer [HIDDEN]' : 'None' },
-      data: config.data
-    });
+
     
     return config;
   },
@@ -57,7 +54,7 @@ apiClient.interceptors.request.use(
  */
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`[API Response] ${response.config.url}:`, response.data);
+
     return response.data;
   },
   (error) => {

@@ -108,7 +108,7 @@ const authService = {
         method: "POST",
         body: JSON.stringify(userData),
       });
-      console.log("[Auth] Registration successful");
+
       return data;
     } catch (error) {
       if (error instanceof ApiError) {
@@ -130,7 +130,7 @@ const authService = {
         method: "POST",
         body: JSON.stringify(credentials),
       });
-      console.log("[Auth] Login successful");
+
       return data;
     } catch (error) {
       if (error instanceof ApiError) {

@@ -81,7 +81,7 @@ export function Scanner() {
   }, [isScanning]);
 
   const initializeScanner = () => {
-    console.log("Initializing Quagga scanner...");
+
     
     Quagga.init({
       inputStream: {
@@ -123,7 +123,7 @@ export function Scanner() {
         return;
       }
       
-      console.log("Quagga initialized successfully");
+
       scannerInitializedRef.current = true;
       Quagga.start();
       setCameraError(null);
@@ -184,7 +184,7 @@ export function Scanner() {
   };
 
   const stopScanner = () => {
-    console.log("Stopping Quagga scanner...");
+
     try {
       if (scannerInitializedRef.current) {
         Quagga.stop();
