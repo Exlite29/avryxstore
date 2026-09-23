@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Search, MoreHorizontal, Package, RefreshCw, Trash2, Edit, AlertTriangle, FileUp, Filter, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ import {
 import productService from "./productService";
 import inventoryService from "../inventory/inventoryService";
 import { useToast } from "@/contexts/ToastContext";
+import { useHardwareScanner } from "@/hooks/useHardwareScanner";
 import { ProductForm } from "./ProductForm";
 
 export function Products() {
@@ -51,6 +52,9 @@ export function Products() {
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [presetBarcode, setPresetBarcode] = useState(null);
+  const barcodeInputRef = useRef(null);
+  const searchInputRef = useRef(null);
   const limit = 10;
   const { showToast } = useToast();
   const showSkeleton = useSkeletonLoading(loading, 3000);
@@ -109,12 +113,12 @@ export function Products() {
       
       if (response.pagination) {
         setTotalPages(response.pagination.totalPages || 1);
-        setTotalCount(response.pagination.total || invList.length);
+        setTotalCount(response.pagination.total || prodList.length);
       } else {
         setTotalPages(1);
-        setTotalCount(invList.length);
+        setTotalCount(prodList.length);
       }
-    } catch (error) {
+    } catch {
       showToast("Failed to fetch products", "error");
     } finally {
       setLoading(false);
@@ -156,7 +160,7 @@ export function Products() {
       await productService.delete(id);
       showToast("Product deleted successfully", "success");
       fetchProducts();
-    } catch (error) {
+    } catch {
       showToast("Failed to delete product", "error");
     }
   };
@@ -185,12 +189,13 @@ export function Products() {
   };
 
   const handleEdit = async (product) => {
+    setPresetBarcode(null);
     setLoading(true);
     try {
       const response = await productService.getById(product.id);
       setEditingProduct(response.data || product);
       setIsSheetOpen(true);
-    } catch (error) {
+    } catch {
       showToast("Failed to fetch product details", "error");
       // Fallback to local data
       setEditingProduct(product);
@@ -211,15 +216,37 @@ export function Products() {
       
       // Fetch fresh data to get updated stock from inventory table
       fetchProducts();
-    } catch (error) {
+    } catch {
       showToast("Failed to update stock", "error");
     }
   };
 
   const openAddSheet = () => {
     setEditingProduct(null);
+    setPresetBarcode(null);
     setIsSheetOpen(true);
   };
+
+  // Hardware barcode scanner (keyboard-wedge): route every scan to the
+  // product form's barcode field instead of whatever happens to be focused.
+  const handleScan = (barcode, target) => {
+    // Clear any partial characters the scanner typed into the search box
+    if (target === searchInputRef.current) {
+      setSearchTerm("");
+    }
+
+    setPresetBarcode(barcode);
+    if (isSheetOpen) {
+      // Form is already open: put the barcode into its field
+      barcodeInputRef.current?.focus();
+    } else {
+      // Otherwise open the Add Product form prefilled with the barcode
+      setEditingProduct(null);
+      setIsSheetOpen(true);
+    }
+  };
+
+  useHardwareScanner(handleScan);
 
   return (
     <div className="flex flex-col gap-6">
@@ -293,13 +320,13 @@ export function Products() {
                           const products = JSON.parse(event.target.result);
                           await productService.bulkImport(products);
                           showToast("Bulk import successful", "success");
-                          fetchProducts();
-                        } catch (err) {
+                           fetchProducts();
+                        } catch {
                           showToast("Invalid file format. Please use JSON.", "error");
                         }
                       };
                       reader.readAsText(file);
-                    } catch (err) {
+                    } catch {
                       showToast("Bulk import failed", "error");
                     } finally {
                       setLoading(false);
@@ -362,6 +389,7 @@ export function Products() {
                   <div className="relative w-full max-w-xs ml-auto">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
+                      ref={searchInputRef}
                       type="search"
                       placeholder="Search products..."
                       className="pl-8"
@@ -517,7 +545,13 @@ export function Products() {
         </>
       )}
 
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <Sheet
+        open={isSheetOpen}
+        onOpenChange={(open) => {
+          setIsSheetOpen(open);
+          if (!open) setPresetBarcode(null);
+        }}
+      >
         <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editingProduct ? "Edit Product" : "Add New Product"}</SheetTitle>
@@ -532,6 +566,8 @@ export function Products() {
             onSubmit={handleSave} 
             onCancel={() => setIsSheetOpen(false)} 
             loading={saving}
+            barcodeRef={barcodeInputRef}
+            presetBarcode={presetBarcode}
           />
         </SheetContent>
       </Sheet>

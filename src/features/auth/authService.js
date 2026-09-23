@@ -10,7 +10,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 /**
  * Map API error codes to user-friendly messages
  */
-const getAuthErrorMessage = (error) => {
+export const getAuthErrorMessage = (error) => {
   if (!isApiError(error)) {
     return getErrorMessage(error, AUTH_ERROR_MESSAGES.login.invalidCredentials);
   }
@@ -57,7 +57,7 @@ const getAuthErrorMessage = (error) => {
 /**
  * Map profile/update errors to user-friendly messages
  */
-const getProfileErrorMessage = (error) => {
+export const getProfileErrorMessage = (error) => {
   if (!isApiError(error)) {
     return AUTH_ERROR_MESSAGES.profile;
   }

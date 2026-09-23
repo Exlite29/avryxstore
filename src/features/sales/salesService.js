@@ -2,7 +2,6 @@ import api, { ApiError, isApiError, getErrorCode } from "../../lib/api";
 import {
   SALES_ERROR_MESSAGES,
   getErrorMessage,
-  getStatusCodeErrorMessage,
 } from "../../lib/errorMessages";
 
 /**

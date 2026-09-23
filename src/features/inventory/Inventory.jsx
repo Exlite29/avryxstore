@@ -46,8 +46,6 @@ import productService from "../products/productService";
 
 export function Inventory() {
   const [inventory, setInventory] = useState([]);
-  const [allInventory, setAllInventory] = useState([]); // For stats calculation
-  const [valuation, setValuation] = useState({ total_value: 0, item_count: 0 });
   const [stats, setStats] = useState({
     totalItems: 0,
     lowStockCount: 0,
@@ -75,13 +73,12 @@ export function Inventory() {
     setLoading(true);
     try {
       // Fetch paginated inventory for table
-      const [invData, valData, allInvData] = await Promise.all([
+      const [invData, allInvData] = await Promise.all([
         inventoryService.getAll({
           page: currentPage,
           limit,
           search: currentSearch
         }),
-        inventoryService.getValuation(),
         // Fetch all inventory without pagination for stats calculation
         inventoryService.getAll({ limit: 10000, search: "" })
       ]);
@@ -90,7 +87,6 @@ export function Inventory() {
       
       // Get all inventory for stats (not paginated)
       let allInvList = allInvData.inventory || allInvData.data || (Array.isArray(allInvData) ? allInvData : []);
-      setAllInventory(allInvList);
       
       // Also fetch products to ensure we have complete product info
       let productMap = new Map();
@@ -170,13 +166,6 @@ export function Inventory() {
         lowStockCount: lowStockItems.length,
         totalValuation: totalVal,
         healthyCount: healthyItems.length
-      });
-      
-      // Also update valuation from API response as fallback
-      const vData = valData.data || valData || {};
-      setValuation({
-        total_value: vData.total_value || vData.value || totalVal,
-        item_count: vData.item_count || vData.count || mergedAllInventory.length
       });
       
       if (invData.pagination) {

@@ -72,6 +72,11 @@ export function Login() {
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="grid gap-4">
+            {error && (
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
+            )}
             {isRegister && (
               <div className="grid gap-2">
                 <Label htmlFor="name">Full Name</Label>

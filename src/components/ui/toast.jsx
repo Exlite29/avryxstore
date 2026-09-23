@@ -16,11 +16,12 @@ const toastIcons = {
   info: Info,
 };
 
-export function Toast({ message, type = "info", onClose, duration = 3000 }) {
+export function Toast({ message, type = "info", onClose }) {
   const Icon = toastIcons[type] || Info;
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsVisible(true);
   }, []);
 

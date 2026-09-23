@@ -87,7 +87,7 @@ export function Sales() {
         setTotalPages(1);
         setTotalCount(salesList.length);
       }
-    } catch (error) {
+    } catch {
       showToast("Failed to fetch sales history", "error");
     } finally {
       setLoading(false);
@@ -123,7 +123,7 @@ export function Sales() {
       showToast("Sale cancelled successfully", "success");
       setIsDetailsOpen(false);
       fetchData(); // Refresh history
-    } catch (error) {
+    } catch {
       showToast("Failed to cancel sale", "error");
     } finally {
       setCancelling(false);

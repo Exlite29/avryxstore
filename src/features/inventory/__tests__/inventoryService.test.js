@@ -17,17 +17,18 @@ Object.defineProperty(window, 'localStorage', {
 
 // Mock the API module
 const mockApi = vi.fn();
-vi.mock('../../lib/api', () => ({
+vi.mock('../../../lib/api', () => ({
   default: mockApi,
   ApiError: class ApiError extends Error {
     constructor(message, statusCode = 500, errorCode = null) {
       super(message);
+      this.name = 'ApiError';
       this.statusCode = statusCode;
       this.errorCode = errorCode;
     }
   },
-  isApiError: vi.fn((error) => error instanceof Error && error.name === 'ApiError'),
-  getErrorCode: vi.fn()
+  isApiError: (error) => error instanceof Error && error.name === 'ApiError',
+  getErrorCode: (error) => error?.errorCode ?? null
 }));
 
 describe('inventoryService', () => {
@@ -64,7 +65,7 @@ describe('inventoryService', () => {
     it('throws ApiError on failure', async () => {
       const { default: inventoryService } = await import('../inventoryService');
       
-      const { ApiError } = await import('../../lib/api');
+      const { ApiError } = await import('../../../lib/api');
       
       mockApi.mockRejectedValueOnce(new ApiError('Product not found', 404, 'PRODUCT_NOT_FOUND'));
       
@@ -97,7 +98,7 @@ describe('inventoryService', () => {
     it('throws ApiError for insufficient stock', async () => {
       const { default: inventoryService } = await import('../inventoryService');
       
-      const { ApiError } = await import('../../lib/api');
+      const { ApiError } = await import('../../../lib/api');
       
       mockApi.mockRejectedValueOnce(new ApiError('Insufficient stock', 400, 'INSUFFICIENT_STOCK'));
       

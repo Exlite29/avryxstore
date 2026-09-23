@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Upload, X } from "lucide-react";
 import productService from "./productService";
 
-export function ProductForm({ product, onSubmit, onCancel, loading }) {
+export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, presetBarcode }) {
   const [formData, setFormData] = useState({
     name: "",
     barcode: "",
@@ -19,10 +19,16 @@ export function ProductForm({ product, onSubmit, onCancel, loading }) {
   });
 
   const [categories, setCategories] = useState([]);
-  const [fetchingCategories, setFetchingCategories] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  useEffect(() => {
+    if (presetBarcode) {
+      setFormData((prev) => ({ ...prev, barcode: presetBarcode }));
+      barcodeRef?.current?.focus();
+    }
+  }, [presetBarcode, barcodeRef]);
 
   useEffect(() => {
     if (product) {
@@ -45,14 +51,11 @@ export function ProductForm({ product, onSubmit, onCancel, loading }) {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      setFetchingCategories(true);
       try {
         const response = await productService.getCategories();
         setCategories(response.data || []);
       } catch (error) {
         console.error("Failed to fetch categories:", error);
-      } finally {
-        setFetchingCategories(false);
       }
     };
     fetchCategories();
@@ -125,6 +128,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading }) {
             id="barcode"
             name="barcode"
             placeholder="Barcode"
+            ref={barcodeRef}
             value={formData.barcode}
             onChange={handleChange}
           />

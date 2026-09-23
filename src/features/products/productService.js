@@ -2,7 +2,6 @@ import api, { ApiError, isApiError, getErrorCode } from "../../lib/api";
 import {
   PRODUCT_ERROR_MESSAGES,
   getErrorMessage,
-  getStatusCodeErrorMessage,
 } from "../../lib/errorMessages";
 
 /**
@@ -76,7 +75,7 @@ const productService = {
     try {
       // Sanitize params: remove undefined, null, or empty string values
       const sanitizedParams = Object.fromEntries(
-        Object.entries(params).filter(([_, v]) => v != null && v !== "")
+        Object.entries(params).filter(([, v]) => v != null && v !== "")
       );
       
       const query = new URLSearchParams(sanitizedParams).toString();

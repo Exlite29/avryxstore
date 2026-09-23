@@ -59,7 +59,7 @@ export function Reports() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [salesTrend, top, inv, scn] = await Promise.all([
+      const [salesTrend, top, inv] = await Promise.all([
         reportService.getSalesReports({ groupBy: 'day' }),
         reportService.getTopProducts(),
         reportService.getInventoryReports(),

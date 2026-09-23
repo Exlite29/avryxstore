@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Custom hook for skeleton loading with a configurable delay
@@ -18,6 +18,7 @@ export function useSkeletonLoading(isLoading, delay = 3000) {
       return () => clearTimeout(timer);
     } else {
       // Reset when loading completes
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSkeleton(false);
     }
   }, [isLoading, delay]);
