@@ -44,16 +44,15 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    setIsAuthenticated(false);
+    setUser(null);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("isAuthenticated");
     try {
       await authService.logout();
     } catch (error) {
       console.error("Logout error:", error);
-    } finally {
-      setIsAuthenticated(false);
-      setUser(null);
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("isAuthenticated");
     }
   };
 

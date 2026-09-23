@@ -67,9 +67,15 @@ apiClient.interceptors.response.use(
       // Handle 401 Unauthorized
       if (status === 401) {
         localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        localStorage.removeItem("isAuthenticated");
         // Only redirect if not already on login or landing page
         if (!window.location.pathname.includes("/login") && window.location.pathname !== "/") {
-          window.location.href = "/login";
+          // Client-side navigation avoids a server round-trip (which 404s
+          // without an SPA rewrite rule on the host)
+          import("../routes").then(({ router }) => {
+            router.navigate({ to: "/login" });
+          });
         }
       }
 

@@ -1,11 +1,14 @@
-import { Outlet, useLocation } from "@tanstack/react-router";
+import { Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 
 export function DashboardLayout() {
   const location = useLocation();
   const pathname = location.pathname;
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const getTitle = (path) => {
     if (path === "/products") return "Products";
@@ -18,8 +21,8 @@ export function DashboardLayout() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated");
-    window.location.href = "/login";
+    logout();
+    navigate({ to: "/login" });
   };
 
   return (
