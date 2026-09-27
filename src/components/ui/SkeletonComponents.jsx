@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -39,6 +40,16 @@ export function SkeletonTableRow({ columns = 5 }) {
         </TableCell>
       ))}
     </TableRow>
+  );
+}
+
+export function SkeletonTableRows({ rows = 5, columns = 5 }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, index) => (
+        <SkeletonTableRow key={index} columns={columns} />
+      ))}
+    </>
   );
 }
 
@@ -113,6 +124,137 @@ export function SkeletonActions({ count = 2 }) {
  */
 export function SkeletonSearchInput() {
   return <Skeleton className="h-10 w-64" />;
+}
+
+export function SkeletonSearchResults({ rows = 3 }) {
+  return (
+    <div className="rounded-md border bg-background p-2 shadow-lg" role="status" aria-label="Loading search results">
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={index} className="flex items-center gap-3 border-b p-2 last:border-b-0">
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Skeleton loader for a single labelled form field
+ */
+export function SkeletonFormField({ className, labelWidth = "w-24" }) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      <Skeleton className={cn("h-4", labelWidth)} />
+      <Skeleton className="h-9 w-full" />
+    </div>
+  );
+}
+
+/**
+ * Skeleton loader for a pair of side-by-side form fields
+ */
+export function SkeletonFormFieldRow({ labelWidths = ["w-24", "w-20"] }) {
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <SkeletonFormField labelWidth={labelWidths[0]} />
+      <SkeletonFormField labelWidth={labelWidths[1]} />
+    </div>
+  );
+}
+
+/**
+ * Skeleton loader for the product form, mirrors ProductForm's layout so the
+ * edit sheet does not shift once the product details resolve.
+ */
+export function SkeletonProductForm() {
+  return (
+    <div className="space-y-4 py-4" role="status" aria-label="Loading product details">
+      <SkeletonFormField labelWidth="w-28" />
+      <SkeletonFormFieldRow labelWidths={["w-20", "w-20"]} />
+      <SkeletonFormFieldRow labelWidths={["w-16", "w-12"]} />
+      <SkeletonFormFieldRow labelWidths={["w-28", "w-28"]} />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="w-full aspect-video rounded-lg" />
+      </div>
+      <SkeletonFormField labelWidth="w-24" />
+      <div className="flex justify-end gap-2 pt-4">
+        <Skeleton className="h-9 w-20" />
+        <Skeleton className="h-9 w-32" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Skeleton loader for a key/value detail block
+ */
+export function SkeletonDetailRows({ rows = 3, className }) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      {Array.from({ length: rows }).map((_, index) => (
+        <div key={index} className="flex items-center justify-between gap-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Skeleton loader for the sale details sheet
+ */
+export function SkeletonSaleDetails() {
+  return (
+    <div className="space-y-6 py-6" role="status" aria-label="Loading transaction details">
+      <div className="space-y-1">
+        <Skeleton className="h-3 w-16" />
+        <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted p-4">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+          <div className="space-y-2 text-right">
+            <Skeleton className="h-3 w-10 ml-auto" />
+            <Skeleton className="h-4 w-20 ml-auto" />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Skeleton className="h-3 w-32" />
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="flex justify-between items-center border-b border-dashed pb-2 last:border-0"
+            >
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-4 border-t-2">
+        <SkeletonDetailRows rows={2} />
+        <div className="flex items-center justify-between pt-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-7 w-32" />
+        </div>
+      </div>
+
+      <Skeleton className="h-9 w-full" />
+    </div>
+  );
 }
 
 /**
@@ -200,12 +342,17 @@ export function SkeletonReportsPage() {
 
       <SkeletonDashboardStats count={4} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SkeletonChart />
-        <SkeletonChart />
+      <div className="grid gap-6 md:grid-cols-7">
+        <div className="md:col-span-4">
+          <SkeletonChart />
+        </div>
+        <div className="md:col-span-3">
+          <SkeletonChart />
+        </div>
+        <div className="md:col-span-7">
+          <SkeletonChart />
+        </div>
       </div>
-
-      <SkeletonTable rows={5} columns={3} />
     </div>
   );
 }

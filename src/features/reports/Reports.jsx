@@ -28,15 +28,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/contexts/ToastContext";
-import { useSkeletonLoading } from "@/hooks/useSkeletonLoading";
 import {
-  SkeletonDashboardStats,
-  SkeletonChart,
-  SkeletonTable,
-  SkeletonPageHeader,
-  SkeletonActions
+  SkeletonReportsPage
 } from "@/components/ui/SkeletonComponents";
 import reportService from "./reportService";
 
@@ -53,8 +47,9 @@ export function Reports() {
     trans_count: 0
   });
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const { showToast } = useToast();
-  const showSkeleton = useSkeletonLoading(loading, 3000);
+  const showSkeleton = loading && !hasLoaded;
 
   const fetchData = async () => {
     setLoading(true);
@@ -111,10 +106,11 @@ export function Reports() {
       console.error("Reports Fetch Error:", error);
       showToast("Real-time data synchronization failed: using cached views", "warning");
       // Keep existing placeholder logic as fallback if needed, but the service handles errors
-    } finally {
-      setLoading(false);
-    }
-  };
+     } finally {
+       setHasLoaded(true);
+       setLoading(false);
+     }
+   };
 
   useEffect(() => {
     fetchData();
@@ -122,23 +118,8 @@ export function Reports() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Skeleton Loading State */}
       {showSkeleton ? (
-        <>
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <SkeletonPageHeader />
-            <SkeletonActions count={2} />
-          </div>
-
-          <SkeletonDashboardStats count={4} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <SkeletonChart />
-            <SkeletonChart />
-          </div>
-
-          <SkeletonTable rows={5} columns={3} />
-        </>
+        <SkeletonReportsPage />
       ) : (
         <>
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

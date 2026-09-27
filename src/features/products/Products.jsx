@@ -27,11 +27,11 @@ import {
 } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSkeletonLoading } from "@/hooks/useSkeletonLoading";
 import {
   SkeletonTable,
+  SkeletonTableRows,
   SkeletonPageHeader,
-  SkeletonActions
+  SkeletonProductForm
 } from "@/components/ui/SkeletonComponents";
 import productService from "./productService";
 import inventoryService from "../inventory/inventoryService";
@@ -42,22 +42,25 @@ import { ProductForm } from "./ProductForm";
 export function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [presetBarcode, setPresetBarcode] = useState(null);
   const barcodeInputRef = useRef(null);
   const searchInputRef = useRef(null);
   const limit = 10;
   const { showToast } = useToast();
-  const showSkeleton = useSkeletonLoading(loading, 3000);
+  const showSkeleton = loading && !hasLoaded;
 
   const fetchProducts = async (currentSearch = searchTerm, currentPage = page, lowStock = showLowStockOnly) => {
     setLoading(true);
@@ -121,17 +124,21 @@ export function Products() {
     } catch {
       showToast("Failed to fetch products", "error");
     } finally {
+      setHasLoaded(true);
       setLoading(false);
     }
   };
 
   useEffect(() => {
     const fetchCategories = async () => {
+      setCategoriesLoading(true);
       try {
         const response = await productService.getCategories();
         setCategories(response.data || []);
       } catch (error) {
         console.error("Failed to fetch categories:", error);
+      } finally {
+        setCategoriesLoading(false);
       }
     };
     fetchCategories();
@@ -190,18 +197,16 @@ export function Products() {
 
   const handleEdit = async (product) => {
     setPresetBarcode(null);
-    setLoading(true);
+    setEditingProduct(product);
+    setIsSheetOpen(true);
+    setDetailsLoading(true);
     try {
       const response = await productService.getById(product.id);
       setEditingProduct(response.data || product);
-      setIsSheetOpen(true);
     } catch {
       showToast("Failed to fetch product details", "error");
-      // Fallback to local data
-      setEditingProduct(product);
-      setIsSheetOpen(true);
     } finally {
-      setLoading(false);
+      setDetailsLoading(false);
     }
   };
 
@@ -224,6 +229,7 @@ export function Products() {
   const openAddSheet = () => {
     setEditingProduct(null);
     setPresetBarcode(null);
+    setDetailsLoading(false);
     setIsSheetOpen(true);
   };
 
@@ -370,20 +376,23 @@ export function Products() {
                     
                     <div className="flex items-center gap-1 border rounded-md px-2 h-9 bg-background">
                       <Filter className="h-4 w-4 text-muted-foreground mr-1" />
-                      <select 
-                        className="bg-transparent text-sm focus:outline-none min-w-[120px]"
-                        value={selectedCategory}
-                        onChange={(e) => {
-                          setSelectedCategory(e.target.value);
-                          setPage(1);
-                        }}
-                      >
+                       <select
+                         className="bg-transparent text-sm focus:outline-none min-w-[120px]"
+                         value={selectedCategory}
+                         disabled={categoriesLoading}
+                         aria-busy={categoriesLoading}
+                         onChange={(e) => {
+                           setSelectedCategory(e.target.value);
+                           setPage(1);
+                         }}
+                       >
                         <option value="all">All Categories</option>
-                        {categories.map((cat, i) => (
-                          <option key={i} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                    </div>
+                         {categories.map((cat, i) => (
+                           <option key={i} value={cat}>{cat}</option>
+                         ))}
+                       </select>
+                       {categoriesLoading && <Skeleton className="h-3 w-16" />}
+                     </div>
                   </div>
 
                   <div className="relative w-full max-w-xs ml-auto">
@@ -414,12 +423,8 @@ export function Products() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
-                          Loading products...
-                        </TableCell>
-                      </TableRow>
+                    {loading && products.length === 0 ? (
+                      <SkeletonTableRows rows={Math.min(limit, 5)} columns={6} />
                     ) : products.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
@@ -485,7 +490,7 @@ export function Products() {
                           <TableCell>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" aria-label="Product actions">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -549,26 +554,33 @@ export function Products() {
         open={isSheetOpen}
         onOpenChange={(open) => {
           setIsSheetOpen(open);
-          if (!open) setPresetBarcode(null);
+          if (!open) {
+            setPresetBarcode(null);
+            setDetailsLoading(false);
+          }
         }}
       >
         <SheetContent side="right" className="sm:max-w-md overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{editingProduct ? "Edit Product" : "Add New Product"}</SheetTitle>
             <SheetDescription>
-              {editingProduct 
-                ? "Update the product details below. All fields are required except description." 
+              {editingProduct
+                ? "Update the product details below. All fields are required except description."
                 : "Enter the details for the new product. All fields are required except description."}
             </SheetDescription>
           </SheetHeader>
-          <ProductForm 
-            product={editingProduct} 
-            onSubmit={handleSave} 
-            onCancel={() => setIsSheetOpen(false)} 
-            loading={saving}
-            barcodeRef={barcodeInputRef}
-            presetBarcode={presetBarcode}
-          />
+          {detailsLoading ? (
+            <SkeletonProductForm />
+          ) : (
+            <ProductForm
+              product={editingProduct}
+              onSubmit={handleSave}
+              onCancel={() => setIsSheetOpen(false)}
+              loading={saving}
+              barcodeRef={barcodeInputRef}
+              presetBarcode={presetBarcode}
+            />
+          )}
         </SheetContent>
       </Sheet>
     </div>

@@ -79,7 +79,7 @@ apiClient.interceptors.response.use(
         }
       }
 
-      const message = data?.message || HTTP_ERROR_MESSAGES[status] || `Request failed with status ${status}`;
+      const message = data?.error || data?.message || HTTP_ERROR_MESSAGES[status] || `Request failed with status ${status}`;
       const errorCode = data?.code || data?.errorCode || null;
       const details = data?.details || data?.errors || null;
 

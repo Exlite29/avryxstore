@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Search,
@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SkeletonSearchResults } from "@/components/ui/SkeletonComponents";
 import { useToast } from "@/contexts/ToastContext";
 import { useHardwareScanner } from "@/hooks/useHardwareScanner";
 import { cn } from "@/lib/utils";
@@ -37,10 +38,14 @@ const scanStatus = {
   error: { label: "Lookup failed", className: "text-destructive" },
 };
 
+const VAT_RATE = 0.12;
+const roundCurrency = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+
 export function Scanner() {
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState("");
   const [processingScan, setProcessingScan] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -54,6 +59,16 @@ export function Scanner() {
   const searchInputRef = useRef(null);
   const barcodeInputRef = useRef(null);
   const amountInputRef = useRef(null);
+
+  const subtotal = useMemo(
+    () => cart.reduce(
+      (sum, item) => sum + (Number(item.unit_price || item.price || 0) * item.quantity),
+      0
+    ),
+    [cart]
+  );
+  const vat = useMemo(() => roundCurrency(subtotal * VAT_RATE), [subtotal]);
+  const total = useMemo(() => roundCurrency(subtotal + vat), [subtotal, vat]);
 
   // Hardware barcode scanner (USB/Bluetooth keyboard-wedge)
 
@@ -169,31 +184,40 @@ export function Scanner() {
   };
 
   useEffect(() => {
+    let cancelled = false;
     const handler = setTimeout(async () => {
       if (searchTerm.length < 2) {
         setSearchResults([]);
+        setSearchLoading(false);
         return;
       }
 
+      setSearchLoading(true);
       try {
         const response = await productService.getAll({ search: searchTerm, limit: 5 });
-        setSearchResults(response.data || []);
+        if (!cancelled) {
+          setSearchResults(response.data || []);
+        }
       } catch {
-        showToast("Search error occurred", "error");
+        if (!cancelled) {
+          showToast("Search error occurred", "error");
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
       }
     }, 500);
 
-    return () => clearTimeout(handler);
-  }, [searchTerm]);
-
-  const calculateTotal = () => {
-    return cart.reduce((sum, item) => sum + (Number(item.unit_price || item.price || 0) * item.quantity), 0);
-  };
+    return () => {
+      cancelled = true;
+      clearTimeout(handler);
+    };
+  }, [searchTerm, showToast]);
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
 
-    const total = calculateTotal();
     const paid = parseFloat(amountPaid) || 0;
 
     if (paid < total) {
@@ -284,9 +308,13 @@ export function Scanner() {
                 className="pl-10 h-12 text-lg"
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
-              />
-              {searchResults.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg overflow-hidden">
+               />
+               {searchLoading ? (
+                 <div className="absolute z-10 w-full mt-1">
+                   <SkeletonSearchResults />
+                 </div>
+               ) : searchResults.length > 0 ? (
+                 <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg overflow-hidden">
                   {searchResults.map((product) => (
                     <button
                       key={product.id}
@@ -304,10 +332,10 @@ export function Scanner() {
                       </div>
                       <div className="font-bold">₱{Number(product.unit_price || product.price || 0).toLocaleString()}</div>
                     </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                   ))}
+                 </div>
+               ) : null}
+             </div>
 
             <div className={cn(
               "rounded-xl border-2 p-4 transition-colors",
@@ -490,16 +518,20 @@ export function Scanner() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>₱{calculateTotal().toLocaleString()}</span>
+                    <span>₱{subtotal.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Discount</span>
                     <span>₱0.00</span>
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">VAT (12%)</span>
+                    <span>₱{vat.toLocaleString()}</span>
+                  </div>
                   <div className="pt-4 border-t flex justify-between items-end">
                     <span className="text-lg font-bold">Total</span>
                     <span className="text-3xl font-black text-blue-600">
-                      ₱{calculateTotal().toLocaleString()}
+                      ₱{total.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -526,15 +558,15 @@ export function Scanner() {
 
                   {amountPaid && parseFloat(amountPaid) > 0 && (
                     <div className={`p-4 rounded-lg flex justify-between items-center ${
-                      parseFloat(amountPaid) >= calculateTotal()
+                      parseFloat(amountPaid) >= total
                         ? "bg-green-50 text-green-700 border border-green-200"
                         : "bg-red-50 text-red-700 border border-red-200"
                     }`}>
                       <span className="text-sm font-bold uppercase tracking-tight">
-                        {parseFloat(amountPaid) >= calculateTotal() ? "Change Due" : "Balance Due"}
+                        {parseFloat(amountPaid) >= total ? "Change Due" : "Balance Due"}
                       </span>
                       <span className="text-2xl font-black">
-                        ₱{Math.abs(parseFloat(amountPaid) - calculateTotal()).toLocaleString()}
+                        ₱{Math.abs(parseFloat(amountPaid) - total).toLocaleString()}
                       </span>
                     </div>
                   )}
@@ -542,7 +574,7 @@ export function Scanner() {
                   <Button
                     className="w-full h-16 text-lg font-bold shadow-lg"
                     size="lg"
-                    disabled={cart.length === 0 || loading || !amountPaid || parseFloat(amountPaid) < calculateTotal()}
+                    disabled={cart.length === 0 || loading || !amountPaid || parseFloat(amountPaid) < total}
                     onClick={handleCheckout}
                   >
                     {loading ? "Processing..." : "Complete Sale"}

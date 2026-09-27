@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Upload, X } from "lucide-react";
 import productService from "./productService";
 
@@ -19,6 +20,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
   });
 
   const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -51,11 +53,14 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
 
   useEffect(() => {
     const fetchCategories = async () => {
+      setCategoriesLoading(true);
       try {
         const response = await productService.getCategories();
         setCategories(response.data || []);
       } catch (error) {
         console.error("Failed to fetch categories:", error);
+      } finally {
+        setCategoriesLoading(false);
       }
     };
     fetchCategories();
@@ -144,12 +149,13 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
               onChange={handleChange}
               list="category-list"
             />
-            <datalist id="category-list">
-              {categories.map((cat, index) => (
-                <option key={index} value={cat} />
-              ))}
-            </datalist>
-          </div>
+             <datalist id="category-list">
+               {categories.map((cat, index) => (
+                 <option key={index} value={cat} />
+               ))}
+             </datalist>
+             {categoriesLoading && <Skeleton className="h-3 w-24" role="status" aria-label="Loading categories" />}
+           </div>
         </div>
       </div>
 

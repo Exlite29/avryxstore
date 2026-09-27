@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProductForm } from '../ProductForm';
+import productService from '../productService';
 
 vi.mock('../productService', () => ({
   default: {
@@ -47,6 +48,25 @@ describe('ProductForm', () => {
         unit_price: '99.99',
         stock_quantity: '10'
       }));
+    });
+  });
+
+  it('shows a skeleton while categories are loading', async () => {
+    let resolveCategories;
+    vi.mocked(productService.getCategories).mockImplementationOnce(() => new Promise((resolve) => {
+      resolveCategories = resolve;
+    }));
+
+    render(<ProductForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} loading={false} />);
+
+    expect(screen.getByRole('status', { name: 'Loading categories' })).toBeInTheDocument();
+
+    await act(async () => {
+      resolveCategories({ data: ['Cafe'] });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('status', { name: 'Loading categories' })).not.toBeInTheDocument();
     });
   });
 

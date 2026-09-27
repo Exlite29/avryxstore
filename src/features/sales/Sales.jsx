@@ -33,13 +33,14 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/contexts/ToastContext";
-import { useSkeletonLoading } from "@/hooks/useSkeletonLoading";
 import {
   SkeletonDashboardStats,
   SkeletonTable,
+  SkeletonTableRows,
   SkeletonPageHeader,
   SkeletonActions,
-  SkeletonSearchInput
+  SkeletonSearchInput,
+  SkeletonSaleDetails
 } from "@/components/ui/SkeletonComponents";
 import salesService from "./salesService";
 
@@ -47,9 +48,11 @@ export function Sales() {
   const [sales, setSales] = useState([]);
   const [summary, setSummary] = useState({ total_revenue: 0, sale_count: 0 });
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSale, setSelectedSale] = useState(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   
   const [page, setPage] = useState(1);
@@ -58,7 +61,7 @@ export function Sales() {
   const limit = 10;
   
   const { showToast } = useToast();
-  const showSkeleton = useSkeletonLoading(loading, 3000);
+  const showSkeleton = loading && !hasLoaded;
 
   const fetchData = async (currentSearch = searchTerm, currentPage = page) => {
     setLoading(true);
@@ -89,10 +92,11 @@ export function Sales() {
       }
     } catch {
       showToast("Failed to fetch sales history", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+     } finally {
+       setHasLoaded(true);
+       setLoading(false);
+     }
+   };
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -112,6 +116,15 @@ export function Sales() {
   const handleViewDetails = async (sale) => {
     setSelectedSale(sale);
     setIsDetailsOpen(true);
+    setDetailsLoading(true);
+    try {
+      const response = await salesService.getById(sale.id);
+      setSelectedSale((prev) => ({ ...(prev || {}), ...(response.data || response) }));
+    } catch {
+      // Keep whatever the list row already gave us
+    } finally {
+      setDetailsLoading(false);
+    }
   };
 
   const handleCancelSale = async () => {
@@ -251,11 +264,9 @@ export function Sales() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="h-24 text-center">Loading sales...</TableCell>
-                      </TableRow>
-                    ) : sales.length === 0 ? (
+                     {loading && sales.length === 0 ? (
+                       <SkeletonTableRows rows={Math.min(limit, 5)} columns={5} />
+                     ) : sales.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No sales recorded today.</TableCell>
                       </TableRow>
@@ -284,7 +295,12 @@ export function Sales() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleViewDetails(sale)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="View transaction details"
+                              onClick={() => handleViewDetails(sale)}
+                            >
                               <Eye className="h-4 w-4" />
                             </Button>
                           </TableCell>
@@ -328,14 +344,22 @@ export function Sales() {
       )}
 
       {/* Sale Details Sheet */}
-      <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+      <Sheet
+        open={isDetailsOpen}
+        onOpenChange={(open) => {
+          setIsDetailsOpen(open);
+          if (!open) setDetailsLoading(false);
+        }}
+      >
         <SheetContent side="right" className="sm:max-w-md">
           <SheetHeader>
             <SheetTitle>Transaction Details</SheetTitle>
             <SheetDescription>Detailed breakdown for Sale #{selectedSale?.id}</SheetDescription>
           </SheetHeader>
           
-          {selectedSale && (
+          {detailsLoading ? (
+            <SkeletonSaleDetails />
+          ) : selectedSale ? (
             <div className="space-y-6 py-6">
               <div className="space-y-1">
                 <div className="text-xs uppercase text-muted-foreground font-semibold">Summary</div>
@@ -393,7 +417,7 @@ export function Sales() {
                 </div>
               )}
             </div>
-          )}
+          ) : null}
         </SheetContent>
       </Sheet>
     </div>

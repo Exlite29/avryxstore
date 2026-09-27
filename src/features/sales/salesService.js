@@ -4,24 +4,42 @@ import {
   getErrorMessage,
 } from "../../lib/errorMessages";
 
-/**
- * Get user-friendly error message for sales operations
- */
+const getValidationMessage = (details) => {
+  if (!details) return null;
+
+  const fields = Array.isArray(details)
+    ? details.map((detail) => detail?.field)
+    : Object.keys(details);
+
+  if (fields.includes("items")) {
+    return SALES_ERROR_MESSAGES.create.invalidItems;
+  }
+
+  if (fields.some((field) => typeof field === "string" && field.includes("quantity"))) {
+    return SALES_ERROR_MESSAGES.create.invalidQuantity;
+  }
+
+  return null;
+};
+
 const getSalesErrorMessage = (error, operation) => {
   if (!isApiError(error)) {
-    return SALES_ERROR_MESSAGES[operation] || SALES_ERROR_MESSAGES.getAll;
+    return operation === "create"
+      ? SALES_ERROR_MESSAGES.create.paymentFailed
+      : SALES_ERROR_MESSAGES[operation] || SALES_ERROR_MESSAGES.getAll;
   }
 
   const errorCode = getErrorCode(error);
 
-  // Handle specific error codes
   switch (errorCode) {
     case "EMPTY_CART":
     case "CART_EMPTY":
+    case "SALE_005":
       return SALES_ERROR_MESSAGES.create.emptyCart;
     case "INVALID_ITEMS":
       return SALES_ERROR_MESSAGES.create.invalidItems;
     case "INSUFFICIENT_STOCK":
+    case "PROD_007":
       return SALES_ERROR_MESSAGES.create.insufficientStock;
     case "PRODUCT_NOT_FOUND":
       return SALES_ERROR_MESSAGES.create.productNotFound;
@@ -29,11 +47,16 @@ const getSalesErrorMessage = (error, operation) => {
       return SALES_ERROR_MESSAGES.create.invalidQuantity;
     case "INVALID_PRICE":
       return SALES_ERROR_MESSAGES.create.invalidPrice;
+    case "INSUFFICIENT_PAYMENT":
+      return SALES_ERROR_MESSAGES.create.insufficientPayment;
     case "PAYMENT_FAILED":
+    case "SALE_007":
+    case "SALE_008":
       return SALES_ERROR_MESSAGES.create.paymentFailed;
     case "PAYMENT_DECLINED":
       return SALES_ERROR_MESSAGES.create.paymentDeclined;
     case "SALE_NOT_FOUND":
+    case "SALE_001":
       return SALES_ERROR_MESSAGES.cancel.notFound;
     case "ALREADY_CANCELLED":
       return SALES_ERROR_MESSAGES.cancel.alreadyCancelled;
@@ -43,8 +66,10 @@ const getSalesErrorMessage = (error, operation) => {
       return SALES_ERROR_MESSAGES.cancel.hasRefund;
     case "REASON_REQUIRED":
       return SALES_ERROR_MESSAGES.cancel.reasonRequired;
-    default:
-      // Handle status codes
+    default: {
+      const validationMessage = getValidationMessage(error.details);
+      if (validationMessage) return validationMessage;
+
       if (error.statusCode === 404) {
         return SALES_ERROR_MESSAGES.cancel.notFound;
       }
@@ -52,21 +77,17 @@ const getSalesErrorMessage = (error, operation) => {
         return SALES_ERROR_MESSAGES.cancel.alreadyCancelled;
       }
       if (error.statusCode === 400) {
-        if (operation === "create") {
-          return SALES_ERROR_MESSAGES.create.emptyCart;
-        }
-        if (operation === "cancel") {
-          return SALES_ERROR_MESSAGES.cancel.reasonRequired;
-        }
+        return operation === "cancel"
+          ? SALES_ERROR_MESSAGES.cancel.reasonRequired
+          : error.message || SALES_ERROR_MESSAGES.create.paymentFailed;
       }
       if (error.statusCode === 422) {
-        if (error.details) {
-          if (error.details.items) return SALES_ERROR_MESSAGES.create.invalidItems;
-          if (error.details.quantity) return SALES_ERROR_MESSAGES.create.invalidQuantity;
-        }
         return SALES_ERROR_MESSAGES.create.invalidItems;
       }
-      return error.message || SALES_ERROR_MESSAGES[operation] || SALES_ERROR_MESSAGES.getAll;
+      return error.message || (operation === "create"
+        ? SALES_ERROR_MESSAGES.create.paymentFailed
+        : SALES_ERROR_MESSAGES[operation] || SALES_ERROR_MESSAGES.getAll);
+    }
   }
 };
 
@@ -83,7 +104,8 @@ const salesService = {
         throw new ApiError(
           getSalesErrorMessage(error, "getAll"),
           error.statusCode,
-          error.errorCode
+          error.errorCode,
+          error.details
         );
       }
       console.error("[Sales] Get all error:", error);
@@ -105,7 +127,8 @@ const salesService = {
         throw new ApiError(
           getSalesErrorMessage(error, "getDailySummary"),
           error.statusCode,
-          error.errorCode
+          error.errorCode,
+          error.details
         );
       }
       console.error("[Sales] Get daily summary error:", error);
@@ -127,7 +150,8 @@ const salesService = {
         throw new ApiError(
           getSalesErrorMessage(error, "getById"),
           error.statusCode,
-          error.errorCode
+          error.errorCode,
+          error.details
         );
       }
       console.error("[Sales] Get by ID error:", error);
@@ -152,12 +176,13 @@ const salesService = {
         throw new ApiError(
           getSalesErrorMessage(error, "create"),
           error.statusCode,
-          error.errorCode
+          error.errorCode,
+          error.details
         );
       }
       console.error("[Sales] Create error:", error);
       throw new ApiError(
-        getErrorMessage(error, SALES_ERROR_MESSAGES.create.emptyCart),
+        getErrorMessage(error, SALES_ERROR_MESSAGES.create.paymentFailed),
         500,
         "SALE_CREATE_ERROR"
       );
@@ -174,7 +199,8 @@ const salesService = {
         throw new ApiError(
           getSalesErrorMessage(error, "getReceipt"),
           error.statusCode,
-          error.errorCode
+          error.errorCode,
+          error.details
         );
       }
       console.error("[Sales] Get receipt error:", error);
@@ -199,7 +225,8 @@ const salesService = {
         throw new ApiError(
           getSalesErrorMessage(error, "cancel"),
           error.statusCode,
-          error.errorCode
+          error.errorCode,
+          error.details
         );
       }
       console.error("[Sales] Cancel error:", error);

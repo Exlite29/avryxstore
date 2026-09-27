@@ -33,10 +33,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/contexts/ToastContext";
-import { useSkeletonLoading } from "@/hooks/useSkeletonLoading";
 import {
   SkeletonDashboardStats,
   SkeletonTable,
+  SkeletonTableRows,
   SkeletonPageHeader,
   SkeletonActions,
   SkeletonSearchInput
@@ -53,6 +53,7 @@ export function Inventory() {
     healthyCount: 0
   });
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isAdjustmentOpen, setIsAdjustmentOpen] = useState(false);
@@ -67,7 +68,7 @@ export function Inventory() {
   const limit = 10;
   
   const { showToast } = useToast();
-  const showSkeleton = useSkeletonLoading(loading, 3000);
+  const showSkeleton = loading && !hasLoaded;
 
   const fetchData = async (currentSearch = searchTerm, currentPage = page) => {
     setLoading(true);
@@ -178,10 +179,11 @@ export function Inventory() {
     } catch (error) {
       showToast("Failed to fetch inventory data", "error");
       console.error("Inventory fetch error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+     } finally {
+       setHasLoaded(true);
+       setLoading(false);
+     }
+   };
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -371,11 +373,9 @@ export function Inventory() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">Loading...</TableCell>
-                      </TableRow>
-                    ) : inventory.length === 0 ? (
+                     {loading && inventory.length === 0 ? (
+                       <SkeletonTableRows rows={Math.min(limit, 5)} columns={7} />
+                     ) : inventory.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">No inventory records found.</TableCell>
                       </TableRow>

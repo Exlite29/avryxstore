@@ -16,8 +16,6 @@ import {
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useSkeletonLoading } from "@/hooks/useSkeletonLoading";
 import {
   SkeletonDashboardStats,
   SkeletonRecentSalesTable,
@@ -37,7 +35,8 @@ export function DashboardHome() {
   });
   const [recentSales, setRecentSales] = useState([]);
   const [loading, setLoading] = useState(true);
-  const showSkeleton = useSkeletonLoading(loading, 3000);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const showSkeleton = loading && !hasLoaded;
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -63,6 +62,7 @@ export function DashboardHome() {
       } catch (error) {
         console.error("Dashboard stats error:", error);
       } finally {
+        setHasLoaded(true);
         setLoading(false);
       }
     };
