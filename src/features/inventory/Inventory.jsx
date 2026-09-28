@@ -220,6 +220,26 @@ export function Inventory() {
     }
 
     setSaving(true);
+
+    const currentQty = Number(selectedProduct.total_inventory_qty || selectedProduct.stock_quantity || selectedProduct.stock || 0);
+    const change = Number(adjustmentValue);
+    const targetQty =
+      adjustmentType === "add"
+        ? currentQty + change
+        : adjustmentType === "remove"
+          ? Math.max(0, currentQty - change)
+          : change;
+    const previousInventory = inventory;
+
+    // Optimistic update: reflect the new stock level immediately
+    setInventory((prev) =>
+      prev.map((item) =>
+        item.id === selectedProduct.id
+          ? { ...item, total_inventory_qty: targetQty, stock_quantity: targetQty, stock: targetQty }
+          : item
+      )
+    );
+
     try {
       const data = {
         quantity: Number(adjustmentValue),
@@ -238,6 +258,8 @@ export function Inventory() {
       setIsAdjustmentOpen(false);
       fetchData(); // Refresh data
     } catch (error) {
+      // Roll back the optimistic change
+      setInventory(previousInventory);
       showToast(error.message || "Failed to adjust stock", "error");
     } finally {
       setSaving(false);

@@ -56,10 +56,10 @@ describe("Scanner", () => {
     mockGetAll.mockResolvedValue({ data: [] });
   });
 
-  it("includes VAT in the total and payment payload", async () => {
+  it("charges the subtotal as the total and sends it in the payment payload", async () => {
     mockGetByBarcode.mockResolvedValueOnce({ data: product });
     mockCreate.mockResolvedValueOnce({
-      data: { total_amount: 112, payment_received: 112, change_given: 0 },
+      data: { total_amount: 100, payment_received: 100, change_given: 0 },
     });
 
     render(<Scanner />);
@@ -70,19 +70,18 @@ describe("Scanner", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enter" }));
 
     await waitFor(() => expect(screen.getByText("Coffee")).toBeInTheDocument());
-    expect(screen.getByText("VAT (12%)")).toBeInTheDocument();
-    expect(screen.getByText("₱12")).toBeInTheDocument();
-    expect(screen.getAllByText("₱112").length).toBeGreaterThan(0);
+    expect(screen.queryByText("VAT (12%)")).not.toBeInTheDocument();
+    expect(screen.getAllByText("₱100").length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByPlaceholderText("0.00"), {
-      target: { value: "112" },
+      target: { value: "100" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Complete Sale/i }));
 
     await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        amount_paid: 112,
+        amount_paid: 100,
         discount: 0,
         items: [{ product_id: 1, quantity: 1, unit_price: 100 }],
       })

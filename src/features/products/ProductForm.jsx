@@ -6,6 +6,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2, Upload, X } from "lucide-react";
 import productService from "./productService";
 
+const DRAFT_KEY = "avryx_product_form_draft";
+const COMMON_UNITS = ["pcs", "kg", "g", "box", "pack", "dozen", "bottle", "can", "sachet", "liter"];
+
+const loadDraft = () => {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, presetBarcode }) {
   const [formData, setFormData] = useState({
     name: "",
@@ -24,6 +38,26 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const isDraft = !product;
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  useEffect(() => {
+    // Restore a previously saved draft when creating a new product
+    if (!isDraft) return;
+    const draft = loadDraft();
+    if (draft) {
+      const { barcode: draftBarcode, ...rest } = draft;
+      setFormData((prev) => ({
+        ...prev,
+        ...rest,
+        // A barcode scanned into the form should always win over a stale draft
+        barcode: presetBarcode || draftBarcode || prev.barcode
+      }));
+      setImagePreview(draft.image_url || null);
+      setDraftSaved(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (presetBarcode) {
@@ -33,21 +67,20 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
   }, [presetBarcode, barcodeRef]);
 
   useEffect(() => {
-    if (product) {
-      setFormData({
-        name: product.name || "",
-        barcode: product.barcode || "",
-        category: product.category || "",
-        unit_price: product.unit_price || product.price || "",
-        stock_quantity: product.stock_quantity || product.stock || "",
-        low_stock_threshold: product.low_stock_threshold || product.min_stock_level || "5",
-        unit: product.unit || "pcs",
-        description: product.description || "",
-        image_url: product.image_url || ""
-      });
-      if (product.image_url) {
-        setImagePreview(product.image_url);
-      }
+    if (!product) return;
+    setFormData({
+      name: product.name || "",
+      barcode: product.barcode || "",
+      category: product.category || "",
+      unit_price: product.unit_price || product.price || "",
+      stock_quantity: product.stock_quantity || product.stock || "",
+      low_stock_threshold: product.low_stock_threshold || product.min_stock_level || "5",
+      unit: product.unit || "pcs",
+      description: product.description || "",
+      image_url: product.image_url || ""
+    });
+    if (product.image_url) {
+      setImagePreview(product.image_url);
     }
   }, [product]);
 
@@ -66,6 +99,30 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
     fetchCategories();
   }, []);
 
+  // Autosave the draft (new product only) so an in-progress entry survives a refresh
+  useEffect(() => {
+    if (!isDraft) return;
+    setDraftSaved(false);
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(formData));
+        setDraftSaved(true);
+      } catch {
+        // Storage unavailable; the draft simply won't persist
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [formData, isDraft]);
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // Ignore storage errors on clear
+    }
+    setDraftSaved(false);
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -77,6 +134,11 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
     // First save/update the product
     try {
       const savedProduct = await onSubmit(formData);
+      
+      // A new product was created successfully, so the draft is no longer needed
+      if (isDraft) {
+        clearDraft();
+      }
       
       // If there's a file selected and we have a product ID, upload it
       const productId = product?.id || savedProduct?.id || savedProduct?.data?.id;
@@ -136,6 +198,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
             ref={barcodeRef}
             value={formData.barcode}
             onChange={handleChange}
+            autoComplete="off"
           />
         </div>
         <div className="space-y-2">
@@ -148,6 +211,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
               value={formData.category}
               onChange={handleChange}
               list="category-list"
+              autoComplete="off"
             />
              <datalist id="category-list">
                {categories.map((cat, index) => (
@@ -181,7 +245,14 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
             placeholder="pcs, kg, etc."
             value={formData.unit}
             onChange={handleChange}
+            list="unit-list"
+            autoComplete="off"
           />
+          <datalist id="unit-list">
+            {COMMON_UNITS.map((unit) => (
+              <option key={unit} value={unit} />
+            ))}
+          </datalist>
         </div>
       </div>
 
@@ -256,6 +327,9 @@ export function ProductForm({ product, onSubmit, onCancel, loading, barcodeRef, 
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
+        {isDraft && draftSaved && (
+          <span className="mr-auto self-center text-xs text-muted-foreground">Draft autosaved</span>
+        )}
         <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
           Cancel
         </Button>

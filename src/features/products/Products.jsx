@@ -162,21 +162,36 @@ export function Products() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
-    
+
+    const deletedProduct = products.find((p) => p.id === id);
+    // Optimistic removal; restore the row if the delete fails
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+
     try {
       await productService.delete(id);
       showToast("Product deleted successfully", "success");
-      fetchProducts();
     } catch {
+      if (deletedProduct) {
+        setProducts((prev) => [deletedProduct, ...prev]);
+      }
       showToast("Failed to delete product", "error");
     }
   };
 
   const handleSave = async (formData) => {
     setSaving(true);
+    const previousProducts = products;
     try {
       let response;
       if (editingProduct) {
+        // Optimistic update: reflect changes immediately, roll back on failure
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === editingProduct.id
+              ? { ...p, ...formData, id: p.id, image_url: p.image_url }
+              : p
+          )
+        );
         response = await productService.update(editingProduct.id, formData);
         showToast("Product updated successfully", "success");
       } else {
@@ -188,6 +203,9 @@ export function Products() {
       fetchProducts(); 
       return response;
     } catch (error) {
+      if (editingProduct) {
+        setProducts(previousProducts);
+      }
       showToast(editingProduct ? "Failed to update product" : "Failed to create product", "error");
       throw error;
     } finally {
@@ -211,6 +229,18 @@ export function Products() {
   };
 
   const handleQuickStockUpdate = async (product, amount) => {
+    const currentQty = Number(product.total_inventory_qty || product.stock_quantity || product.stock || 0);
+    const newQty = Math.max(0, currentQty + amount);
+
+    // Optimistic update: adjust the visible stock level immediately
+    setProducts((prev) =>
+      prev.map((p) =>
+        p.id === product.id
+          ? { ...p, total_inventory_qty: newQty, stock_quantity: newQty, stock: newQty }
+          : p
+      )
+    );
+
     try {
       // Use inventory service addStock endpoint
       await inventoryService.addStock(product.id, { 
@@ -218,10 +248,11 @@ export function Products() {
         reason: amount > 0 ? "Quick Restock" : "Quick Manual Adjustment"
       });
       showToast("Stock updated", "success");
-      
-      // Fetch fresh data to get updated stock from inventory table
-      fetchProducts();
     } catch {
+      // Roll back to the original values
+      setProducts((prev) =>
+        prev.map((p) => (p.id === product.id ? product : p))
+      );
       showToast("Failed to update stock", "error");
     }
   };

@@ -38,11 +38,24 @@ const scanStatus = {
   error: { label: "Lookup failed", className: "text-destructive" },
 };
 
-const VAT_RATE = 0.12;
 const roundCurrency = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 
+const CART_STORAGE_KEY = "avryx_scanner_cart";
+
+// Restore a previously saved cart so an in-progress order survives a refresh
+const loadSavedCart = () => {
+  try {
+    const raw = localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export function Scanner() {
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(loadSavedCart);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -67,8 +80,7 @@ export function Scanner() {
     ),
     [cart]
   );
-  const vat = useMemo(() => roundCurrency(subtotal * VAT_RATE), [subtotal]);
-  const total = useMemo(() => roundCurrency(subtotal + vat), [subtotal, vat]);
+  const total = useMemo(() => roundCurrency(subtotal), [subtotal]);
 
   // Hardware barcode scanner (USB/Bluetooth keyboard-wedge)
 
@@ -76,6 +88,19 @@ export function Scanner() {
   useEffect(() => {
     barcodeInputRef.current?.focus();
   }, []);
+
+  // Persist the cart so an in-progress order survives a page refresh
+  useEffect(() => {
+    try {
+      if (cart.length === 0) {
+        localStorage.removeItem(CART_STORAGE_KEY);
+      } else {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      }
+    } catch {
+      // Storage unavailable; the cart simply won't persist
+    }
+  }, [cart]);
 
   const playBeep = (type = "success") => {
     try {
@@ -219,11 +244,6 @@ export function Scanner() {
     if (cart.length === 0) return;
 
     const paid = parseFloat(amountPaid) || 0;
-
-    if (paid < total) {
-      showToast(`Insufficient payment. Need ₱${(total - paid).toLocaleString()}`, "error");
-      return;
-    }
 
     setLoading(true);
     try {
@@ -524,10 +544,6 @@ export function Scanner() {
                     <span className="text-muted-foreground">Discount</span>
                     <span>₱0.00</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">VAT (12%)</span>
-                    <span>₱{vat.toLocaleString()}</span>
-                  </div>
                   <div className="pt-4 border-t flex justify-between items-end">
                     <span className="text-lg font-bold">Total</span>
                     <span className="text-3xl font-black text-blue-600">
@@ -574,7 +590,7 @@ export function Scanner() {
                   <Button
                     className="w-full h-16 text-lg font-bold shadow-lg"
                     size="lg"
-                    disabled={cart.length === 0 || loading || !amountPaid || parseFloat(amountPaid) < total}
+                    disabled={cart.length === 0 || loading || !amountPaid}
                     onClick={handleCheckout}
                   >
                     {loading ? "Processing..." : "Complete Sale"}

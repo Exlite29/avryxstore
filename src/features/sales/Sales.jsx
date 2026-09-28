@@ -131,12 +131,21 @@ export function Sales() {
     if (!window.confirm("Are you sure you want to cancel this sale? This will revert inventory levels.")) return;
     
     setCancelling(true);
+    const previousSales = sales;
+
+    // Optimistic update: mark the sale as cancelled immediately
+    setSales((prev) =>
+      prev.map((s) => (s.id === selectedSale?.id ? { ...s, status: "cancelled" } : s))
+    );
+    setSelectedSale((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
+
     try {
       await salesService.cancel(selectedSale.id, "User requested cancellation");
       showToast("Sale cancelled successfully", "success");
       setIsDetailsOpen(false);
       fetchData(); // Refresh history
     } catch {
+      setSales(previousSales);
       showToast("Failed to cancel sale", "error");
     } finally {
       setCancelling(false);

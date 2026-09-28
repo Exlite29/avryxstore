@@ -83,6 +83,7 @@ export function Login() {
                 <Input
                   id="name"
                   type="text"
+                  autoComplete="name"
                   placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -95,6 +96,7 @@ export function Login() {
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 placeholder="m@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -106,6 +108,7 @@ export function Login() {
               <Input 
                 id="password" 
                 type="password" 
+                autoComplete={isRegister ? "new-password" : "current-password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required 
@@ -122,6 +125,7 @@ export function Login() {
                 <Input 
                   id="confirmPassword" 
                   type="password" 
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required 
