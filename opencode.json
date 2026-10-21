@@ -1,19 +1,41 @@
 {
-  "$schema": "https://opencode.ai/config.json",
-  "model": "ollama/qwen3:8b-16k",
-  "provider": {
+  "$schema": "https://opencode.ai",
+  "model": "opencode/glm-5.3-flash-free",
+  "providers": {
     "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
       "name": "Ollama (local)",
+      "package": "@ai-sdk/openai-compatible",
       "options": {
         "baseURL": "http://localhost:11434/v1"
       },
-      "model": {
+      "models": {
         "qwen3:8b-16k": {
           "name": "Qwen 3 8b",
-          "tool_call": true,
+          "capabilities": {
+            "tools": true
+          },
           "limit": {
             "context": 16384,
+            "output": 4096
+          }
+        }
+      }
+    },
+    "opencode": {
+      "name": "OpenCode Free Tier",
+      "package": "@ai-sdk/openai-compatible",
+      "api": "https://opencode.ai",
+      "options": {
+        "apiKey": "YOUR_OPENCODE_API_KEY_HERE"
+      },
+      "models": {
+        "glm-5.3-flash-free": {
+          "name": "GLM 5.3 Flash (Free)",
+          "capabilities": {
+            "tools": true
+          },
+          "limit": {
+            "context": 1048576,
             "output": 4096
           }
         }
