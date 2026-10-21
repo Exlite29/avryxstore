@@ -1,0 +1,127 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <!-- Definitions for Gradients and Paths -->
+  <defs>
+    <!-- Background Circle Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0f5fa"/>
+    </radialGradient>
+    
+    <!-- Basket Gradient -->
+    <linearGradient id="basketGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7e42"/>
+      <stop offset="100%" stop-color="#e65100"/>
+    </linearGradient>
+
+    <!-- Grocery Items Gradient -->
+    <linearGradient id="bottleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#80deea"/>
+      <stop offset="100%" stop-color="#00acc1"/>
+    </linearGradient>
+    
+    <!-- Text Curve Paths -->
+    <!-- Top Text Path -->
+    <path id="topTextPath" d="M 210,400 A 190,190 0 1,1 590,400" fill="none"/>
+    <!-- Bottom Text Path -->
+    <path id="bottomTextPath" d="M 590,400 A 190,190 0 0,1 210,400" fill="none"/>
+  </defs>
+
+  <!-- Clean Minimalist Background Layer -->
+  <rect width="100%" height="100%" fill="url(#bgGrad)"/>
+
+  <g transform="translate(0, 0)">
+    <!-- Outer Heavy Blue Ring -->
+    <circle cx="400" cy="400" r="230" fill="none" stroke="#0d47a1" stroke-width="26"/>
+    
+    <!-- Inner Thin Blue Accent Ring -->
+    <circle cx="400" cy="400" r="202" fill="none" stroke="#0d47a1" stroke-width="3"/>
+    
+    <!-- Central Shield / Badge Background -->
+    <path d="M 320,240 
+             C 360,225 440,225 480,240 
+             C 510,300 515,380 475,430 
+             C 440,465 360,465 325,430 
+             C 285,380 290,300 320,240 Z" 
+          fill="#ffffff" stroke="#0d47a1" stroke-width="8" stroke-linejoin="round"/>
+          
+    <!-- Shield Inner Orange Border -->
+    <path d="M 326,248 
+             C 363,235 437,235 474,248 
+             C 501,303 506,375 469,421 
+             C 437,453 363,453 331,421 
+             C 294,375 299,303 326,248 Z" 
+          fill="none" stroke="#ffb74d" stroke-width="4" opacity="0.7"/>
+
+    <!-- ========================================== -->
+    <!-- GROCERY BASKET GRAPHIC CENTER ELEMENTS -->
+    <!-- ========================================== -->
+    
+    <!-- Rear Grocery Items (Bottles & Produce silhouettes inside shield) -->
+    <!-- Left bottle -->
+    <rect x="345" y="270" width="22" height="45" rx="5" fill="url(#bottleGrad)" stroke="#0d47a1" stroke-width="4"/>
+    <rect x="351" y="258" width="10" height="12" rx="2" fill="#ffd54f" stroke="#0d47a1" stroke-width="3"/>
+    
+    <!-- Right bottle/jar -->
+    <rect x="375" y="262" width="26" height="53" rx="6" fill="#81c784" stroke="#0d47a1" stroke-width="4"/>
+    <rect x="383" y="252" width="10" height="10" rx="1" fill="#ffffff" stroke="#0d47a1" stroke-width="3"/>
+    
+    <!-- Box item in background -->
+    <rect x="410" y="275" width="35" height="40" rx="4" fill="#ffb74d" stroke="#0d47a1" stroke-width="4"/>
+    <!-- Small details on box -->
+    <line x1="418" y1="287" x2="437" y2="287" stroke="#0d47a1" stroke-width="3" stroke-linecap="round"/>
+    <line x1="418" y1="297" x2="432" y2="297" stroke="#0d47a1" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Main Orange Grocery Basket Body -->
+    <path d="M 330,320 L 470,320 L 455,410 C 455,420 445,425 435,425 L 365,425 C 355,425 345,420 345,410 Z" 
+          fill="url(#basketGrad)" stroke="#0d47a1" stroke-width="5" stroke-linejoin="round"/>
+          
+    <!-- Basket Rim -->
+    <rect x="322" y="315" width="156" height="12" rx="6" fill="#ff6f00" stroke="#0d47a1" stroke-width="5"/>
+    
+    <!-- Basket Vertical Slots/Grille Lines -->
+    <line x1="360" y1="337" x2="368" y2="410" stroke="#0d47a1" stroke-width="4" stroke-linecap="round"/>
+    <line x1="387" y1="337" x2="390" y2="410" stroke="#0d47a1" stroke-width="4" stroke-linecap="round"/>
+    <line x1="413" y1="337" x2="410" y2="410" stroke="#0d47a1" stroke-width="4" stroke-linecap="round"/>
+    <line x1="440" y1="337" x2="432" y2="410" stroke="#0d47a1" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Dynamic Green Growth Arrow & Eco Leaves -->
+    <!-- The rising green arrow shaft -->
+    <path d="M 370,400 Q 405,385 415,330" fill="none" stroke="#4caf50" stroke-width="12" stroke-linecap="round"/>
+    <path d="M 370,400 Q 405,385 415,330" fill="none" stroke="#0d47a1" stroke-width="18" stroke-linecap="round" z-index="-1"/>
+    <!-- Redrawing arrow shaft cleanly over its shadow shell -->
+    <path d="M 370,400 Q 405,385 415,330" fill="none" stroke="#4caf50" stroke-width="10" stroke-linecap="round"/>
+    
+    <!-- Big Vibrant Leaf acting as the Arrow Head -->
+    <path d="M 415,330 C 400,300 435,270 455,275 C 465,305 435,335 415,330 Z" 
+          fill="#81c784" stroke="#0d47a1" stroke-width="4" stroke-linejoin="round"/>
+    <!-- Leaf Center Vein -->
+    <path d="M 422,320 Q 435,300 450,282" fill="none" stroke="#4caf50" stroke-width="3"/>
+    
+    <!-- Small Side Secondary Leaf -->
+    <path d="M 390,365 C 375,355 385,340 398,342 C 403,352 398,362 390,365 Z" 
+          fill="#a5d6a7" stroke="#0d47a1" stroke-width="3" stroke-linejoin="round"/>
+
+    <!-- ========================================== -->
+    <!-- TYPOGRAPHY & TEXT ALONG PATHS -->
+    <!-- ========================================== -->
+    
+    <!-- TOP TEXT: AVRYX STORE -->
+    <text font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="36" fill="#0d47a1" letter-spacing="6">
+      <!-- dx spreads text smoothly along arc -->
+      <textPath href="#topTextPath" startOffset="50%" text-anchor="middle">AVRYX STORE</textPath>
+    </text>
+
+    <!-- CENTER CORE TEXT: AVRYX STORE (Stacked Boldly) -->
+    <text x="400" y="500" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="44" fill="#0d47a1" text-anchor="middle" letter-spacing="1">AVRYX</text>
+    <text x="400" y="542" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="34" fill="#0d47a1" text-anchor="middle" letter-spacing="3">STORE</text>
+
+    <!-- BOTTOM TEXT: • Tindahan • Convenience • -->
+    <text font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="22" fill="#0d47a1" letter-spacing="2">
+      <!-- Inverse arrangement for readable bottom arc alignment -->
+      <textPath href="#bottomTextPath" startOffset="50%" text-anchor="middle">• Tindahan • Convenience •</textPath>
+    </text>
+  </g>
+  
+  <!-- Outer Establishment Tag Placement -->
+  <text x="400" y="675" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="16" fill="#78909c" text-anchor="middle" letter-spacing="1">Est. 2023</text>
+</svg>

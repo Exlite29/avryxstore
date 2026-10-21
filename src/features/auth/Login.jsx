@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import avryxLogo from "@/assets/avryx_store_logo.svg";
 
 export function Login() {
   const navigate = useNavigate();
@@ -62,7 +63,15 @@ export function Login() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-background p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader>
+        <CardHeader className="items-center text-center">
+          <img
+            src={avryxLogo}
+            alt="Avryx Store logo"
+            className="h-16 w-16 rounded-xl object-contain"
+          />
+          <p className="text-sm font-semibold text-muted-foreground">
+            Avryx Store
+          </p>
           <CardTitle className="text-2xl">{isRegister ? "Create Account" : "Login"}</CardTitle>
           <CardDescription>
             {isRegister 

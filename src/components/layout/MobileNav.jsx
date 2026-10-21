@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, Package2 } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Link, useLocation } from "@tanstack/react-router";
+import avryxLogo from "@/assets/avryx_store_logo.svg";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
@@ -28,7 +29,11 @@ export function MobileNav() {
             to="/dashboard"
             className="flex items-center gap-2 text-lg font-semibold"
           >
-            <Package2 className="h-6 w-6" />
+            <img
+              src={avryxLogo}
+              alt="Avryx Store logo"
+              className="h-6 w-6 rounded-md object-contain"
+            />
             <span className="sr-only">Avryx Store</span>
           </Link>
           <Link

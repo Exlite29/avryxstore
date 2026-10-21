@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
+import avryxLogo from "@/assets/avryx_store_logo.svg";
 
 export function Sidebar() {
   return (
@@ -10,6 +11,11 @@ export function Sidebar() {
             to="/dashboard"
             className="flex items-center gap-2 font-semibold"
           >
+            <img
+              src={avryxLogo}
+              alt="Avryx Store logo"
+              className="h-8 w-8 rounded-md object-contain"
+            />
             <span className="">Avryx Store</span>
           </Link>
         </div>
